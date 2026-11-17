@@ -7,10 +7,26 @@ import (
 	"strings"
 	"time"
 
-	_ "modernc.org/sqlite" // sqlite driver
+	moderncsqlite "modernc.org/sqlite" // sqlite driver
 
 	"github.com/gosom/google-maps-scraper/web"
 )
+
+func init() {
+	moderncsqlite.RegisterConnectionHook(func(conn moderncsqlite.ExecQuerierContext, _ string) error {
+		for _, pragma := range []string{
+			"PRAGMA busy_timeout = 5000",
+			"PRAGMA foreign_keys = ON",
+			"PRAGMA synchronous = NORMAL",
+			"PRAGMA cache_size = 1000",
+		} {
+			if _, err := conn.ExecContext(context.Background(), pragma, nil); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+}
 
 type repo struct {
 	db *sql.DB
@@ -344,22 +360,7 @@ func initDatabase(path string) (*sql.DB, error) {
 	db.SetMaxIdleConns(1)
 	db.SetConnMaxLifetime(30 * time.Minute)
 
-	_, err = db.Exec("PRAGMA busy_timeout = 5000")
-	if err != nil {
-		return nil, err
-	}
-
 	_, err = db.Exec("PRAGMA journal_mode=WAL")
-	if err != nil {
-		return nil, err
-	}
-
-	_, err = db.Exec("PRAGMA synchronous=NORMAL")
-	if err != nil {
-		return nil, err
-	}
-
-	_, err = db.Exec("PRAGMA cache_size=1000")
 	if err != nil {
 		return nil, err
 	}
@@ -403,7 +404,70 @@ func createSchema(db *sql.DB) error {
 
 		CREATE INDEX IF NOT EXISTS idx_prospect_touches_key_id
 			ON prospect_touches (place_key, id);
-	`)
 
-	return err
+		CREATE TABLE IF NOT EXISTS crm_offers (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			name TEXT NOT NULL UNIQUE,
+			description TEXT NOT NULL DEFAULT '',
+			default_price_cents INTEGER CHECK (default_price_cents IS NULL OR default_price_cents >= 0),
+			active INTEGER NOT NULL DEFAULT 1,
+			created_at INT NOT NULL,
+			updated_at INT NOT NULL
+		);
+
+		CREATE TABLE IF NOT EXISTS crm_opportunities (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			lead_key TEXT NOT NULL,
+			offer_id INTEGER NOT NULL REFERENCES crm_offers(id) ON DELETE RESTRICT,
+			price_cents INTEGER CHECK (price_cents IS NULL OR price_cents >= 0),
+			stage TEXT NOT NULL,
+			next_action TEXT NOT NULL DEFAULT '',
+			next_action_at INT,
+			notes TEXT NOT NULL DEFAULT '',
+			created_at INT NOT NULL,
+			updated_at INT NOT NULL
+		);
+
+		CREATE INDEX IF NOT EXISTS idx_crm_opportunities_lead_updated
+			ON crm_opportunities (lead_key, updated_at DESC, id DESC);
+		CREATE INDEX IF NOT EXISTS idx_crm_opportunities_next_action
+			ON crm_opportunities (next_action_at, stage);
+
+		CREATE TABLE IF NOT EXISTS crm_meta (
+			key TEXT PRIMARY KEY,
+			value TEXT NOT NULL
+		);
+	`)
+	if err != nil {
+		return err
+	}
+	tx, err := db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	result, err := tx.Exec(`INSERT OR IGNORE INTO crm_meta (key, value) VALUES ('offer_catalog_v1', 'seeded')`)
+	if err != nil {
+		return err
+	}
+	inserted, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if inserted == 0 {
+		return tx.Commit()
+	}
+	now := time.Now().UTC().Unix()
+	for _, name := range []string{
+		"Placa de avaliação (QR Code + NFC)",
+		"Criação de site",
+		"Edição de vídeo",
+		"Fluência em IA",
+		"Otimização do Perfil da Empresa no Google",
+	} {
+		if _, err := tx.Exec(`INSERT INTO crm_offers (name, description, default_price_cents, active, created_at, updated_at) VALUES (?, '', NULL, 1, ?, ?)`, name, now, now); err != nil {
+			return err
+		}
+	}
+	return tx.Commit()
 }

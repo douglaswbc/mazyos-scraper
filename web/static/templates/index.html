@@ -25,7 +25,8 @@
             </div>
             <div class="seg" id="viewSeg">
                 <button type="button" data-view="map" class="on">Mapa</button>
-                <button type="button" data-view="board">Painel</button>
+                <button type="button" data-view="board">Empresas</button>
+                <button type="button" data-view="crm">CRM</button>
             </div>
         </header>
 
@@ -169,6 +170,47 @@
                     <tbody id="rows"></tbody>
                 </table>
             </div>
+        </div>
+    </main>
+
+    <main class="crm-view" id="crm" hidden>
+        <header class="crm-head">
+            <div><h1>CRM comercial</h1><p>Ofertas, oportunidades, valores e próximos passos por empresa.</p></div>
+            <button type="button" class="ghost" id="refreshCRM">Atualizar</button>
+        </header>
+        <div class="crm-content">
+            <section class="crm-section">
+                <div class="crm-section-head"><div><h2>Funil</h2><p id="crmLeadHint">As oportunidades ficam vinculadas às empresas das buscas.</p></div></div>
+                <div class="crm-funnel" id="crmFunnel"></div>
+                <div class="crm-stats" id="crmStats"></div>
+            </section>
+            <section class="crm-section">
+                <div class="crm-section-head"><div><h2>Nova oportunidade</h2><p>Uma empresa pode ter várias ofertas em negociação, cada uma com seu próprio preço.</p></div></div>
+                <form id="opportunityForm" class="crm-form">
+                    <label>Empresa<select id="crmLead" required></select></label>
+                    <label>Oferta<select id="crmOffer" required></select></label>
+                    <label>Preço combinado (R$)<input id="crmPrice" type="number" min="0" step="0.01" placeholder="Pendente"></label>
+                    <label>Etapa<select id="crmStage"></select></label>
+                    <label>Próxima ação<input id="crmNextAction" maxlength="500" placeholder="Ex.: enviar proposta"></label>
+                    <label>Data da ação<input id="crmNextDate" type="date"></label>
+                    <label class="crm-notes-field">Observações<textarea id="crmNotes" maxlength="4000" rows="2"></textarea></label>
+                    <button type="submit" class="primary small">Adicionar oportunidade</button>
+                </form>
+            </section>
+            <section class="crm-section">
+                <div class="crm-section-head"><div><h2>Oportunidades</h2><p>Etapa, preço e próxima ação são salvos no CRM.</p></div></div>
+                <div id="crmOpportunities" class="crm-opportunities"></div>
+            </section>
+            <section class="crm-section">
+                <div class="crm-section-head"><div><h2>Catálogo de ofertas</h2><p>Preços em branco permanecem pendentes; nenhuma tarifa é presumida.</p></div></div>
+                <form id="offerForm" class="crm-form crm-offer-form">
+                    <label>Nome da oferta<input id="newOfferName" maxlength="120" required></label>
+                    <label>Descrição<input id="newOfferDescription" maxlength="1000"></label>
+                    <label>Preço sugerido (R$)<input id="newOfferPrice" type="number" min="0" step="0.01" placeholder="Pendente"></label>
+                    <button type="submit" class="primary small">Cadastrar oferta</button>
+                </form>
+                <div id="crmOffers" class="crm-offers"></div>
+            </section>
         </div>
     </main>
 

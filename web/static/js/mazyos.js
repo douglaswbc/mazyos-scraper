@@ -20,6 +20,14 @@
         { value: 'customer', label: 'Cliente' },
         { value: 'not_interested', label: 'Sem interesse' }
     ];
+    var CRM_STAGES = [
+        { value: 'new', label: 'Novo' },
+        { value: 'qualified', label: 'Qualificado' },
+        { value: 'proposal', label: 'Proposta enviada' },
+        { value: 'negotiation', label: 'Negociação' },
+        { value: 'won', label: 'Ganho' },
+        { value: 'lost', label: 'Perdido' }
+    ];
 
     var $ = function (id) { return document.getElementById(id); };
 
@@ -31,6 +39,8 @@
         jobs: [],
         counts: {},         // jobId -> nº de empresas
         prospects: {},      // place key -> CRM stage and touches
+        crmOffers: [],
+        crmOpportunities: [],
         selected: null,     // job selecionado
         places: [],
         filter: 'all',
@@ -520,6 +530,7 @@
                 renderLive();
                 renderJobs();
                 renderBoard();
+                if (state.view === 'crm') renderCRM();
             });
     }
 
@@ -710,14 +721,201 @@
         }
     });
 
+    function moneyCents(value) {
+        if (value === '' || value == null) return null;
+        var amount = Number(value);
+        if (!Number.isFinite(amount) || amount < 0) return null;
+        return Math.round(amount * 100);
+    }
+
+    function moneyInput(cents) { return cents == null ? '' : (Number(cents) / 100).toFixed(2); }
+    function moneyLabel(cents) { return cents == null ? 'Preço pendente' : (Number(cents) / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }); }
+    function crmStageLabel(value) {
+        var item = CRM_STAGES.filter(function (stage) { return stage.value === value; })[0];
+        return item ? item.label : 'Novo';
+    }
+    function crmStageOptions(selected) {
+        return CRM_STAGES.map(function (stage) {
+            return '<option value="' + stage.value + '"' + (stage.value === selected ? ' selected' : '') + '>' + esc(stage.label) + '</option>';
+        }).join('');
+    }
+    function activeOfferOptions(selected) {
+        return state.crmOffers.filter(function (offer) { return offer.active || Number(offer.id) === Number(selected); }).map(function (offer) {
+            return '<option value="' + offer.id + '"' + (Number(offer.id) === Number(selected) ? ' selected' : '') + '>' + esc(offer.name) + (offer.active ? '' : ' · arquivada') + '</option>';
+        }).join('');
+    }
+    function crmPlace(key) {
+        return state.places.filter(function (p) { return placeKey(p) === key; })[0] || null;
+    }
+
+    function loadCRM() {
+        return Promise.all([
+            fetch('/api/v1/crm/offers?include_inactive=true').then(function (r) { if (!r.ok) throw new Error('offers'); return r.json(); }),
+            fetch('/api/v1/crm/opportunities').then(function (r) { if (!r.ok) throw new Error('opportunities'); return r.json(); })
+        ]).then(function (values) {
+            state.crmOffers = values[0] || [];
+            state.crmOpportunities = values[1] || [];
+            renderCRM();
+        }).catch(function () { toast('Não consegui carregar o CRM.'); });
+    }
+
+    function renderCRM() {
+        $('crmLeadHint').textContent = state.places.length
+            ? state.places.length + ' empresas carregadas da busca selecionada.'
+            : 'Selecione uma busca com empresas para criar oportunidades.';
+        $('crmLead').innerHTML = state.places.length ? state.places.map(function (p) {
+            return '<option value="' + esc(placeKey(p)) + '">' + esc(p.title) + (p.borough ? ' · ' + esc(p.borough) : '') + '</option>';
+        }).join('') : '<option value="">Selecione uma busca primeiro</option>';
+        $('crmOffer').innerHTML = state.crmOffers.filter(function (o) { return o.active; }).map(function (o) {
+            return '<option value="' + o.id + '">' + esc(o.name) + '</option>';
+        }).join('') || '<option value="">Cadastre uma oferta ativa</option>';
+        $('crmStage').innerHTML = crmStageOptions('new');
+        renderCRMOffers();
+        renderCRMOpportunities();
+
+        var counts = {};
+        CRM_STAGES.forEach(function (stage) { counts[stage.value] = 0; });
+        state.crmOpportunities.forEach(function (item) { counts[item.stage] = (counts[item.stage] || 0) + 1; });
+        $('crmFunnel').innerHTML = CRM_STAGES.map(function (stage) {
+            return '<div class="crm-funnel-step"><span>' + esc(stage.label) + '</span><b>' + int(counts[stage.value]) + '</b></div>';
+        }).join('');
+        var won = state.crmOpportunities.filter(function (item) { return item.stage === 'won' && item.price_cents != null; })
+            .reduce(function (total, item) { return total + Number(item.price_cents); }, 0);
+        $('crmStats').innerHTML = '<div><b>' + int(state.crmOpportunities.length) + '</b><span>Oportunidades</span></div>' +
+            '<div><b>' + int(state.crmOpportunities.filter(function (item) { return item.stage === 'won'; }).length) + '</b><span>Ganhos</span></div>' +
+            '<div><b>' + moneyLabel(won) + '</b><span>Valor ganho registrado</span></div>';
+    }
+
+    function renderCRMOffers() {
+        if (!state.crmOffers.length) {
+            $('crmOffers').innerHTML = '<div class="crm-empty">Nenhuma oferta cadastrada.</div>';
+            return;
+        }
+        $('crmOffers').innerHTML = state.crmOffers.map(function (offer) {
+            return '<article class="crm-offer-row" data-offer="' + offer.id + '">' +
+                '<label>Oferta<input class="offer-name" maxlength="120" value="' + esc(offer.name) + '"></label>' +
+                '<label>Descrição<input class="offer-description" maxlength="1000" value="' + esc(offer.description || '') + '"></label>' +
+                '<label>Preço padrão (R$)<input class="offer-price" type="number" min="0" step="0.01" placeholder="Pendente" value="' + moneyInput(offer.default_price_cents) + '"></label>' +
+                '<label class="crm-active"><input class="offer-active" type="checkbox"' + (offer.active ? ' checked' : '') + '> Ativa</label>' +
+                '<div class="crm-row-actions"><button type="button" class="ghost" data-offer-save="' + offer.id + '">Salvar</button><button type="button" class="ghost danger" data-offer-delete="' + offer.id + '">Excluir</button></div>' +
+                '</article>';
+        }).join('');
+    }
+
+    function renderCRMOpportunities() {
+        if (!state.crmOpportunities.length) {
+            $('crmOpportunities').innerHTML = '<div class="crm-empty">Ainda não há oportunidades. Selecione uma empresa acima e cadastre a primeira.</div>';
+            return;
+        }
+        $('crmOpportunities').innerHTML = state.crmOpportunities.map(function (item) {
+            var place = crmPlace(item.lead_key);
+            var leadName = place ? place.title : 'Lead ' + item.lead_key.slice(0, 8);
+            var date = item.next_action_at ? String(item.next_action_at).slice(0, 10) : '';
+            return '<article class="crm-opp-card" data-opportunity="' + item.id + '" data-lead="' + esc(item.lead_key) + '">' +
+                '<div class="crm-opp-title"><strong>' + esc(leadName) + '</strong><span>' + esc(item.offer_name || '') + '</span></div>' +
+                '<div class="crm-form crm-opp-fields">' +
+                '<label>Oferta<select class="opp-offer">' + activeOfferOptions(item.offer_id) + '</select></label>' +
+                '<label>Preço (R$)<input class="opp-price" type="number" min="0" step="0.01" placeholder="Pendente" value="' + moneyInput(item.price_cents) + '"></label>' +
+                '<label>Etapa<select class="opp-stage">' + crmStageOptions(item.stage) + '</select></label>' +
+                '<label>Próxima ação<input class="opp-action" maxlength="500" value="' + esc(item.next_action || '') + '"></label>' +
+                '<label>Data<input class="opp-date" type="date" value="' + esc(date) + '"></label>' +
+                '<label class="crm-notes-field">Observações<textarea class="opp-notes" maxlength="4000" rows="2">' + esc(item.notes || '') + '</textarea></label>' +
+                '<div class="crm-row-actions"><button type="button" class="primary small" data-opp-save="' + item.id + '">Salvar</button><button type="button" class="ghost danger" data-opp-delete="' + item.id + '">Excluir</button></div>' +
+                '</div></article>';
+        }).join('');
+    }
+
+    $('refreshCRM').addEventListener('click', loadCRM);
+    $('crmOffer').addEventListener('change', function () {
+        var offer = state.crmOffers.filter(function (item) { return item.active && Number(item.id) === Number($('crmOffer').value); })[0];
+        if (offer && offer.default_price_cents != null && !$('crmPrice').value) $('crmPrice').value = moneyInput(offer.default_price_cents);
+    });
+
+    $('offerForm').addEventListener('submit', function (event) {
+        event.preventDefault();
+        var price = moneyCents($('newOfferPrice').value);
+        if ($('newOfferPrice').value && price == null) { toast('Informe um preço válido.'); return; }
+        fetch('/api/v1/crm/offers', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({
+            name: $('newOfferName').value, description: $('newOfferDescription').value,
+            default_price_cents: price, active: true
+        }) }).then(function (r) { if (!r.ok) throw new Error('save'); return r.json(); }).then(function () {
+            $('offerForm').reset(); loadCRM(); toast('Oferta cadastrada.');
+        }).catch(function () { toast('Não consegui salvar a oferta.'); });
+    });
+
+    $('crmOffers').addEventListener('click', function (event) {
+        var save = event.target.closest('[data-offer-save]');
+        var del = event.target.closest('[data-offer-delete]');
+        if (!save && !del) return;
+        var row = event.target.closest('[data-offer]');
+        var id = Number((save || del).getAttribute(save ? 'data-offer-save' : 'data-offer-delete'));
+        if (del) {
+            if (!window.confirm('Excluir esta oferta do catálogo?')) return;
+            fetch('/api/v1/crm/offers/' + id, { method: 'DELETE' }).then(function (r) { if (!r.ok) throw new Error('delete'); loadCRM(); toast('Oferta excluída.'); }).catch(function () { toast('A oferta pode estar vinculada a oportunidades.'); });
+            return;
+        }
+        var priceValue = row.querySelector('.offer-price').value;
+        var price = moneyCents(priceValue);
+        if (priceValue && price == null) { toast('Informe um preço válido.'); return; }
+        fetch('/api/v1/crm/offers/' + id, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({
+            name: row.querySelector('.offer-name').value, description: row.querySelector('.offer-description').value,
+            default_price_cents: price, active: row.querySelector('.offer-active').checked
+        }) }).then(function (r) { if (!r.ok) throw new Error('save'); return r.json(); }).then(function () { loadCRM(); toast('Oferta atualizada.'); }).catch(function () { toast('Não consegui atualizar a oferta.'); });
+    });
+
+    function opportunityPayload(form, leadKey) {
+        var priceValue = form.querySelector('.opp-price') ? form.querySelector('.opp-price').value : $('crmPrice').value;
+        var price = moneyCents(priceValue);
+        var dateValue = form.querySelector('.opp-date') ? form.querySelector('.opp-date').value : $('crmNextDate').value;
+        return {
+            lead_key: leadKey,
+            offer_id: Number(form.querySelector('.opp-offer') ? form.querySelector('.opp-offer').value : $('crmOffer').value),
+            price_cents: price,
+            stage: form.querySelector('.opp-stage') ? form.querySelector('.opp-stage').value : $('crmStage').value,
+            next_action: form.querySelector('.opp-action') ? form.querySelector('.opp-action').value : $('crmNextAction').value,
+            next_action_at: dateValue ? new Date(dateValue + 'T12:00:00Z').toISOString() : null,
+            notes: form.querySelector('.opp-notes') ? form.querySelector('.opp-notes').value : $('crmNotes').value
+        };
+    }
+
+    $('opportunityForm').addEventListener('submit', function (event) {
+        event.preventDefault();
+        var leadKey = $('crmLead').value;
+        var payload = opportunityPayload(this, leadKey);
+        if (!leadKey || !payload.offer_id || ($('crmPrice').value && payload.price_cents == null)) { toast('Selecione empresa e oferta e confira o preço.'); return; }
+        fetch('/api/v1/crm/opportunities', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
+            .then(function (r) { if (!r.ok) throw new Error('save'); return r.json(); }).then(function () { this.reset(); loadCRM(); toast('Oportunidade adicionada.'); }.bind(this))
+            .catch(function () { toast('Não consegui salvar a oportunidade.'); });
+    });
+
+    $('crmOpportunities').addEventListener('click', function (event) {
+        var save = event.target.closest('[data-opp-save]');
+        var del = event.target.closest('[data-opp-delete]');
+        if (!save && !del) return;
+        var card = event.target.closest('[data-opportunity]');
+        var id = Number((save || del).getAttribute(save ? 'data-opp-save' : 'data-opp-delete'));
+        if (del) {
+            if (!window.confirm('Excluir esta oportunidade?')) return;
+            fetch('/api/v1/crm/opportunities/' + id, { method: 'DELETE' }).then(function (r) { if (!r.ok) throw new Error('delete'); loadCRM(); toast('Oportunidade excluída.'); }).catch(function () { toast('Não consegui excluir a oportunidade.'); });
+            return;
+        }
+        var payload = opportunityPayload(card, card.getAttribute('data-lead'));
+        if (!payload.offer_id || (card.querySelector('.opp-price').value && payload.price_cents == null)) { toast('Confira o preço e a oferta.'); return; }
+        fetch('/api/v1/crm/opportunities/' + id, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
+            .then(function (r) { if (!r.ok) throw new Error('save'); return r.json(); }).then(function () { loadCRM(); toast('Oportunidade atualizada.'); }).catch(function () { toast('Não consegui salvar a oportunidade.'); });
+    });
+
     function setView(v) {
         state.view = v;
+        document.body.classList.toggle('crm-open', v === 'crm');
         Array.prototype.forEach.call($('viewSeg').children, function (b) {
             b.classList.toggle('on', b.getAttribute('data-view') === v);
         });
         $('board').hidden = v !== 'board';
+        $('crm').hidden = v !== 'crm';
         renderLive();
         if (v === 'board') renderBoard();
+        if (v === 'crm') loadCRM();
     }
     segmented('viewSeg', 'data-view', setView);
 

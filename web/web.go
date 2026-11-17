@@ -34,6 +34,10 @@ type Server struct {
 	svc  *Service
 }
 
+func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	s.srv.Handler.ServeHTTP(w, r)
+}
+
 func New(svc *Service, addr string) (*Server, error) {
 	ans := Server{
 		svc:  svc,
@@ -173,6 +177,11 @@ func New(svc *Service, addr string) (*Server, error) {
 			renderJSON(w, http.StatusMethodNotAllowed, apiError{Code: http.StatusMethodNotAllowed, Message: methodNotAllowedMessage})
 		}
 	})
+
+	mux.HandleFunc("/api/v1/crm/offers", ans.apiCRMOffers)
+	mux.HandleFunc("/api/v1/crm/offers/{id}", ans.apiCRMOffer)
+	mux.HandleFunc("/api/v1/crm/opportunities", ans.apiCRMOpportunities)
+	mux.HandleFunc("/api/v1/crm/opportunities/{id}", ans.apiCRMOpportunity)
 
 	handler := securityHeaders(mux)
 	ans.srv.Handler = handler

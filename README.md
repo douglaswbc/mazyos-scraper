@@ -50,7 +50,9 @@ Mac e Linux: use o caminho do Claude Code, ou rode `bash instalar.sh` e depois `
 
 Clicando num ponto, aparece a ficha da empresa: nota, número de avaliações, telefone (com link direto pro WhatsApp quando é celular), site e link pro Google Maps.
 
-Na aba **Painel** ficam os números da busca, os filtros (Sem site, Só rede social, WhatsApp, Com e-mail) e dois botões. **Baixar planilha** gera um arquivo que abre direto no Excel, em português, só com o que estiver filtrado. **Copiar telefones** joga a lista de telefones na área de transferência.
+Na aba **Empresas** ficam os números da busca, os filtros (Sem site, Só rede social, WhatsApp, Com e-mail) e dois botões. **Baixar planilha** gera um arquivo que abre direto no Excel, em português, só com o que estiver filtrado. **Copiar telefones** joga a lista de telefones na área de transferência.
+
+Na aba **CRM** fica o funil comercial. O catálogo inicial traz placa de avaliação QR Code + NFC, criação de site, edição de vídeo, fluência em IA e otimização do Perfil da Empresa no Google; as ofertas são editáveis e os preços começam pendentes, sem valores presumidos. Cada empresa pode ter várias oportunidades, cada uma com oferta, preço negociado, etapa, próxima ação, data e observações próprias. A etapa de abordagem/WhatsApp continua separada do funil comercial.
 
 O filtro mais útil pra quem vende site, tráfego ou automação? **Sem site.** É a empresa com avaliação boa no Google e nenhum lugar pra mandar o cliente.
 
@@ -71,6 +73,7 @@ A analogia quebra num ponto: o estagiário entende o que lê, o programa não. E
 - **Termos do Google.** Coletar dados do Maps de forma automática vai contra os termos de uso do Google. Na prática, o risco é o Google desconfiar do volume e mostrar captcha ou bloquear por um tempo. Use com moderação: algumas buscas por dia, não centenas.
 - **A quantidade é aproximada.** Quem decide quantos resultados aparecem é o Google. Às vezes você pede 60 e vêm 45.
 - **Pontos cinza no mapa** são empresas que o Google devolveu um pouco fora do raio escolhido.
+- **Autenticação.** O servidor HTTP não inclui autenticação própria. Não o exponha diretamente a uma rede não confiável: use bind em loopback e um proxy reverso com autenticação (por exemplo, Basic Auth). Isso protege também as rotas do CRM, que permitem consultar e alterar ofertas, preços e oportunidades.
 - **LGPD.** Telefone de empresa listado no Google é dado público, mas a abordagem continua sujeita à LGPD. Se apresente, diga onde achou o contato e tire da lista na hora quem pedir pra não receber mais mensagem.
 
 ---

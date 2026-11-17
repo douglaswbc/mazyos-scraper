@@ -12,6 +12,7 @@ import (
 type Service struct {
 	repo       JobRepository
 	prospects  ProspectRepository
+	crm        CRMRepository
 	dataFolder string
 }
 
@@ -21,9 +22,11 @@ type jobCounter interface {
 
 func NewService(repo JobRepository, dataFolder string) *Service {
 	prospects, _ := repo.(ProspectRepository)
+	crm, _ := repo.(CRMRepository)
 	return &Service{
 		repo:       repo,
 		prospects:  prospects,
+		crm:        crm,
 		dataFolder: dataFolder,
 	}
 }
@@ -180,7 +183,54 @@ func (s *Service) ListProspectTouches(ctx context.Context, key string) ([]Prospe
 	return s.prospects.ListProspectTouches(ctx, key)
 }
 
-// csvPath returns the on-disk path of a job's CSV output, rejecting ids that
+func (s *Service) CRMOffers(ctx context.Context, includeInactive bool) ([]Offer, error) {
+	if s.crm == nil {
+		return nil, errors.New("CRM storage is unavailable")
+	}
+	return s.crm.ListOffers(ctx, includeInactive)
+}
+
+func (s *Service) SaveCRMOffer(ctx context.Context, offer Offer) (Offer, error) {
+	if s.crm == nil {
+		return Offer{}, errors.New("CRM storage is unavailable")
+	}
+	if strings.TrimSpace(offer.Name) == "" || len(offer.Name) > 120 || len(offer.Description) > 1000 || (offer.DefaultPriceCents != nil && *offer.DefaultPriceCents < 0) {
+		return Offer{}, errors.New("invalid offer")
+	}
+	return s.crm.SaveOffer(ctx, offer)
+}
+
+func (s *Service) DeleteCRMOffer(ctx context.Context, id int64) error {
+	if s.crm == nil {
+		return errors.New("CRM storage is unavailable")
+	}
+	return s.crm.DeleteOffer(ctx, id)
+}
+
+func (s *Service) CRMOpportunities(ctx context.Context, leadKey string) ([]Opportunity, error) {
+	if s.crm == nil {
+		return nil, errors.New("CRM storage is unavailable")
+	}
+	return s.crm.ListOpportunities(ctx, leadKey)
+}
+
+func (s *Service) SaveCRMOpportunity(ctx context.Context, item Opportunity) (Opportunity, error) {
+	if s.crm == nil {
+		return Opportunity{}, errors.New("CRM storage is unavailable")
+	}
+	if !ValidProspectKey(item.LeadKey) || item.OfferID <= 0 || !item.Stage.Valid() || len(item.NextAction) > 500 || len(item.Notes) > 4000 || (item.PriceCents != nil && *item.PriceCents < 0) {
+		return Opportunity{}, errors.New("invalid opportunity")
+	}
+	return s.crm.SaveOpportunity(ctx, item)
+}
+
+func (s *Service) DeleteCRMOpportunity(ctx context.Context, id int64) error {
+	if s.crm == nil {
+		return errors.New("CRM storage is unavailable")
+	}
+	return s.crm.DeleteOpportunity(ctx, id)
+}
+
 // could escape the data folder.
 func (s *Service) csvPath(id string) (string, error) {
 	if strings.Contains(id, "/") || strings.Contains(id, "\\") || strings.Contains(id, "..") {
