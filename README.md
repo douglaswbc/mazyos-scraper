@@ -84,6 +84,7 @@ O que eu mudei nesta versão:
 - **Interface nova**, em português, com mapa ao vivo, painel de leads, filtros e planilha no padrão do Excel brasileiro.
 - **Correção pro Windows.** A versão oficial para de funcionar no Windows (as buscas voltam vazias, [issue #322](https://github.com/gosom/google-maps-scraper/issues/322)). O ajuste está em `third_party/scrapemate`.
 - **Rota nova na API**, `GET /api/v1/jobs/{id}/places`, que devolve as empresas de uma busca em JSON.
+- **Pipeline de prospecção**, com etapas, mensagens de abordagem por etapa e histórico persistido no SQLite. O WhatsApp abre a mensagem preenchida; o envio precisa ser confirmado manualmente no aplicativo.
 - **Estatística de uso desligada.** O projeto original manda estatísticas anônimas de uso pro autor. O atalho `Abrir MazyOS Scraper.cmd` desliga isso (`DISABLE_TELEMETRY=1`).
 
 ---

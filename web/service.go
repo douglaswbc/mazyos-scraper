@@ -2,6 +2,7 @@ package web
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -10,6 +11,7 @@ import (
 
 type Service struct {
 	repo       JobRepository
+	prospects  ProspectRepository
 	dataFolder string
 }
 
@@ -18,8 +20,10 @@ type jobCounter interface {
 }
 
 func NewService(repo JobRepository, dataFolder string) *Service {
+	prospects, _ := repo.(ProspectRepository)
 	return &Service{
 		repo:       repo,
+		prospects:  prospects,
 		dataFolder: dataFolder,
 	}
 }
@@ -124,6 +128,56 @@ func (s *Service) Update(ctx context.Context, job *Job) error {
 
 func (s *Service) SelectPending(ctx context.Context) ([]Job, error) {
 	return s.repo.Select(ctx, SelectParams{Status: StatusPending, Limit: 1})
+}
+
+func (s *Service) ListProspectsForJob(ctx context.Context, id string) (map[string]ProspectState, error) {
+	if s.prospects == nil {
+		return nil, errors.New("prospect storage is unavailable")
+	}
+	places, err := s.GetPlaces(ctx, id)
+	if errors.Is(err, ErrPlacesNotFound) {
+		return map[string]ProspectState{}, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	keys := make([]string, 0, len(places))
+	for _, place := range places {
+		if place.Key != "" {
+			keys = append(keys, place.Key)
+		}
+	}
+	return s.prospects.ListProspects(ctx, keys)
+}
+
+func (s *Service) SetProspectStage(ctx context.Context, key string, stage ProspectStage) (ProspectState, error) {
+	if !ValidProspectKey(key) || !stage.Valid() {
+		return ProspectState{}, errors.New("invalid prospect key or stage")
+	}
+	if s.prospects == nil {
+		return ProspectState{}, errors.New("prospect storage is unavailable")
+	}
+	return s.prospects.SetProspectStage(ctx, key, stage)
+}
+
+func (s *Service) AddProspectTouch(ctx context.Context, key string, stage ProspectStage, message string) (ProspectTouch, error) {
+	if !ValidProspectKey(key) || !stage.Valid() || strings.TrimSpace(message) == "" || len(message) > 2000 {
+		return ProspectTouch{}, errors.New("invalid prospect touch")
+	}
+	if s.prospects == nil {
+		return ProspectTouch{}, errors.New("prospect storage is unavailable")
+	}
+	return s.prospects.AddProspectTouch(ctx, key, stage, message)
+}
+
+func (s *Service) ListProspectTouches(ctx context.Context, key string) ([]ProspectTouch, error) {
+	if !ValidProspectKey(key) {
+		return nil, errors.New("invalid prospect key")
+	}
+	if s.prospects == nil {
+		return nil, errors.New("prospect storage is unavailable")
+	}
+	return s.prospects.ListProspectTouches(ctx, key)
 }
 
 // csvPath returns the on-disk path of a job's CSV output, rejecting ids that

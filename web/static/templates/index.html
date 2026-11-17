@@ -131,6 +131,7 @@
                 <div>
                     <h1 id="boardTitle"></h1>
                     <div class="board-meta" id="boardMeta"></div>
+                    <div class="crm-note">O WhatsApp abre a mensagem preenchida; confira e toque em Enviar no aplicativo.</div>
                 </div>
                 <div class="board-actions">
                     <button type="button" class="ghost" id="copyPhones">Copiar telefones</button>
@@ -159,6 +160,8 @@
                             <th>Bairro</th>
                             <th class="num">Nota</th>
                             <th>Telefone</th>
+                            <th>Etapa</th>
+                            <th>Abordagem</th>
                             <th>Site</th>
                             <th></th>
                         </tr>
@@ -168,6 +171,17 @@
             </div>
         </div>
     </main>
+
+    <dialog id="touchDialog" class="touch-dialog">
+        <div class="touch-dialog-head">
+            <div>
+                <h2 id="touchTitle">Histórico de abordagens</h2>
+                <p>O registro indica que o WhatsApp foi aberto, não confirma o envio.</p>
+            </div>
+            <button type="button" class="ghost" id="closeTouches">Fechar</button>
+        </div>
+        <div id="touchHistory" class="touch-history"></div>
+    </dialog>
 
     <div class="toast" id="toast"></div>
 

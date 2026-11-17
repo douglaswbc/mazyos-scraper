@@ -146,6 +146,34 @@ func New(svc *Service, addr string) (*Server, error) {
 		ans.apiGetPlaces(w, r)
 	})
 
+	mux.HandleFunc("/api/v1/jobs/{id}/prospects", func(w http.ResponseWriter, r *http.Request) {
+		r = requestWithID(r)
+		if r.Method != http.MethodGet {
+			renderJSON(w, http.StatusMethodNotAllowed, apiError{Code: http.StatusMethodNotAllowed, Message: methodNotAllowedMessage})
+			return
+		}
+		ans.apiGetProspects(w, r)
+	})
+
+	mux.HandleFunc("/api/v1/prospects/{key}", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPut {
+			renderJSON(w, http.StatusMethodNotAllowed, apiError{Code: http.StatusMethodNotAllowed, Message: methodNotAllowedMessage})
+			return
+		}
+		ans.apiSetProspectStage(w, r)
+	})
+
+	mux.HandleFunc("/api/v1/prospects/{key}/touches", func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodGet:
+			ans.apiGetProspectTouches(w, r)
+		case http.MethodPost:
+			ans.apiAddProspectTouch(w, r)
+		default:
+			renderJSON(w, http.StatusMethodNotAllowed, apiError{Code: http.StatusMethodNotAllowed, Message: methodNotAllowedMessage})
+		}
+	})
+
 	handler := securityHeaders(mux)
 	ans.srv.Handler = handler
 
@@ -700,6 +728,77 @@ func (s *Server) apiGetPlaces(w http.ResponseWriter, r *http.Request) {
 	renderJSON(w, http.StatusOK, places)
 }
 
+func (s *Server) apiGetProspects(w http.ResponseWriter, r *http.Request) {
+	id, ok := getIDFromRequest(r)
+	if !ok {
+		renderJSON(w, http.StatusUnprocessableEntity, apiError{Code: http.StatusUnprocessableEntity, Message: "Invalid ID"})
+		return
+	}
+	prospects, err := s.svc.ListProspectsForJob(r.Context(), id.String())
+	if err != nil {
+		renderJSON(w, http.StatusInternalServerError, apiError{Code: http.StatusInternalServerError, Message: "Could not load prospects"})
+		return
+	}
+	renderJSON(w, http.StatusOK, prospects)
+}
+
+func (s *Server) apiSetProspectStage(w http.ResponseWriter, r *http.Request) {
+	key := r.PathValue("key")
+	var req struct {
+		Stage ProspectStage `json:"stage"`
+	}
+	if err := decodeProspectJSON(w, r, &req); err != nil {
+		renderJSON(w, http.StatusBadRequest, apiError{Code: http.StatusBadRequest, Message: "Invalid request body"})
+		return
+	}
+	if !ValidProspectKey(key) || !req.Stage.Valid() {
+		renderJSON(w, http.StatusBadRequest, apiError{Code: http.StatusBadRequest, Message: "Invalid prospect key or stage"})
+		return
+	}
+	state, err := s.svc.SetProspectStage(r.Context(), key, req.Stage)
+	if err != nil {
+		renderJSON(w, http.StatusInternalServerError, apiError{Code: http.StatusInternalServerError, Message: "Could not update prospect"})
+		return
+	}
+	renderJSON(w, http.StatusOK, state)
+}
+
+func (s *Server) apiGetProspectTouches(w http.ResponseWriter, r *http.Request) {
+	key := r.PathValue("key")
+	if !ValidProspectKey(key) {
+		renderJSON(w, http.StatusBadRequest, apiError{Code: http.StatusBadRequest, Message: "Invalid prospect key"})
+		return
+	}
+	touches, err := s.svc.ListProspectTouches(r.Context(), key)
+	if err != nil {
+		renderJSON(w, http.StatusInternalServerError, apiError{Code: http.StatusInternalServerError, Message: "Could not load touch history"})
+		return
+	}
+	renderJSON(w, http.StatusOK, touches)
+}
+
+func (s *Server) apiAddProspectTouch(w http.ResponseWriter, r *http.Request) {
+	key := r.PathValue("key")
+	var req struct {
+		Stage   ProspectStage `json:"stage"`
+		Message string        `json:"message"`
+	}
+	if err := decodeProspectJSON(w, r, &req); err != nil {
+		renderJSON(w, http.StatusBadRequest, apiError{Code: http.StatusBadRequest, Message: "Invalid request body"})
+		return
+	}
+	if !ValidProspectKey(key) || !req.Stage.Valid() || strings.TrimSpace(req.Message) == "" || len(req.Message) > 2000 {
+		renderJSON(w, http.StatusBadRequest, apiError{Code: http.StatusBadRequest, Message: "Invalid prospect touch"})
+		return
+	}
+	touch, err := s.svc.AddProspectTouch(r.Context(), key, req.Stage, req.Message)
+	if err != nil {
+		renderJSON(w, http.StatusInternalServerError, apiError{Code: http.StatusInternalServerError, Message: "Could not record touch"})
+		return
+	}
+	renderJSON(w, http.StatusCreated, touch)
+}
+
 func (s *Server) apiDeleteJob(w http.ResponseWriter, r *http.Request) {
 	id, ok := getIDFromRequest(r)
 	if !ok {
@@ -726,6 +825,23 @@ func (s *Server) apiDeleteJob(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusOK)
+}
+
+func decodeProspectJSON(w http.ResponseWriter, r *http.Request, dst any) error {
+	r.Body = http.MaxBytesReader(w, r.Body, 4096)
+	decoder := json.NewDecoder(r.Body)
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(dst); err != nil {
+		return err
+	}
+	var extra any
+	if err := decoder.Decode(&extra); err != io.EOF {
+		if err == nil {
+			return errors.New("multiple JSON values")
+		}
+		return err
+	}
+	return nil
 }
 
 func renderJSON(w http.ResponseWriter, code int, data any) {

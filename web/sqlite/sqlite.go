@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"strings"
 	"time"
 
 	_ "modernc.org/sqlite" // sqlite driver
@@ -144,6 +145,143 @@ func (repo *repo) Update(ctx context.Context, job *web.Job) error {
 	return err
 }
 
+func (repo *repo) SetProspectStage(ctx context.Context, key string, stage web.ProspectStage) (web.ProspectState, error) {
+	if !web.ValidProspectKey(key) || !stage.Valid() {
+		return web.ProspectState{}, sql.ErrNoRows
+	}
+
+	now := time.Now().UTC()
+	const q = `INSERT INTO prospects (place_key, stage, updated_at) VALUES (?, ?, ?)
+		ON CONFLICT(place_key) DO UPDATE SET stage = excluded.stage, updated_at = excluded.updated_at`
+	if _, err := repo.db.ExecContext(ctx, q, key, string(stage), now.Unix()); err != nil {
+		return web.ProspectState{}, err
+	}
+	states, err := repo.ListProspects(ctx, []string{key})
+	if err != nil {
+		return web.ProspectState{}, err
+	}
+	return states[key], nil
+}
+
+func (repo *repo) AddProspectTouch(ctx context.Context, key string, stage web.ProspectStage, message string) (web.ProspectTouch, error) {
+	if !web.ValidProspectKey(key) || !stage.Valid() || strings.TrimSpace(message) == "" || len(message) > 2000 {
+		return web.ProspectTouch{}, sql.ErrNoRows
+	}
+
+	now := time.Now().UTC()
+	tx, err := repo.db.BeginTx(ctx, nil)
+	if err != nil {
+		return web.ProspectTouch{}, err
+	}
+	defer tx.Rollback()
+
+	const upsert = `INSERT INTO prospects (place_key, stage, updated_at) VALUES (?, ?, ?)
+		ON CONFLICT(place_key) DO UPDATE SET stage = excluded.stage, updated_at = excluded.updated_at`
+	if _, err := tx.ExecContext(ctx, upsert, key, string(stage), now.Unix()); err != nil {
+		return web.ProspectTouch{}, err
+	}
+
+	const insert = `INSERT INTO prospect_touches (place_key, stage, message, outcome, created_at)
+		VALUES (?, ?, ?, ?, ?)`
+	result, err := tx.ExecContext(ctx, insert, key, string(stage), message, web.ProspectTouchOpened, now.Unix())
+	if err != nil {
+		return web.ProspectTouch{}, err
+	}
+	id, err := result.LastInsertId()
+	if err != nil {
+		return web.ProspectTouch{}, err
+	}
+	if err := tx.Commit(); err != nil {
+		return web.ProspectTouch{}, err
+	}
+
+	return web.ProspectTouch{ID: id, Key: key, Stage: stage, Message: message, Outcome: web.ProspectTouchOpened, CreatedAt: now}, nil
+}
+
+func (repo *repo) ListProspects(ctx context.Context, keys []string) (map[string]web.ProspectState, error) {
+	ans := make(map[string]web.ProspectState, len(keys))
+	if len(keys) == 0 {
+		return ans, nil
+	}
+
+	placeholders := make([]string, len(keys))
+	args := make([]any, len(keys))
+	for i, key := range keys {
+		placeholders[i] = "?"
+		args[i] = key
+	}
+	q := `SELECT p.place_key, p.stage, p.updated_at,
+		(SELECT COUNT(*) FROM prospect_touches x WHERE x.place_key = p.place_key),
+		t.id, t.stage, t.message, t.outcome, t.created_at
+		FROM prospects p
+		LEFT JOIN prospect_touches t ON t.id = (SELECT id FROM prospect_touches x
+			WHERE x.place_key = p.place_key ORDER BY id DESC LIMIT 1)
+		WHERE p.place_key IN (` + strings.Join(placeholders, ",") + `)`
+
+	rows, err := repo.db.QueryContext(ctx, q, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var state web.ProspectState
+		var stage string
+		var updatedAt int64
+		var touchID, touchAt sql.NullInt64
+		var touchStage, message, outcome sql.NullString
+		if err := rows.Scan(&state.Key, &stage, &updatedAt, &state.TouchCount, &touchID, &touchStage, &message, &outcome, &touchAt); err != nil {
+			return nil, err
+		}
+		state.Stage = web.ProspectStage(stage)
+		state.UpdatedAt = time.Unix(updatedAt, 0).UTC()
+		if touchID.Valid {
+			state.LastTouch = &web.ProspectTouch{
+				ID:        touchID.Int64,
+				Key:       state.Key,
+				Stage:     web.ProspectStage(touchStage.String),
+				Message:   message.String,
+				Outcome:   outcome.String,
+				CreatedAt: time.Unix(touchAt.Int64, 0).UTC(),
+			}
+		}
+		ans[state.Key] = state
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return ans, nil
+}
+
+func (repo *repo) ListProspectTouches(ctx context.Context, key string) ([]web.ProspectTouch, error) {
+	const q = `SELECT id, place_key, stage, message, outcome, created_at
+		FROM prospect_touches WHERE place_key = ? ORDER BY id ASC`
+	rows, err := repo.db.QueryContext(ctx, q, key)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	ans := []web.ProspectTouch{}
+	for rows.Next() {
+		var touch web.ProspectTouch
+		var stage string
+		var createdAt int64
+		if err := rows.Scan(&touch.ID, &touch.Key, &stage, &touch.Message, &touch.Outcome, &createdAt); err != nil {
+			return nil, err
+		}
+		touch.Stage = web.ProspectStage(stage)
+		touch.CreatedAt = time.Unix(createdAt, 0).UTC()
+		ans = append(ans, touch)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return ans, nil
+}
+
 type scannable interface {
 	Scan(dest ...any) error
 }
@@ -247,6 +385,24 @@ func createSchema(db *sql.DB) error {
 
 		CREATE INDEX IF NOT EXISTS idx_jobs_created_at_id
 			ON jobs (created_at DESC, id DESC);
+
+		CREATE TABLE IF NOT EXISTS prospects (
+			place_key TEXT PRIMARY KEY,
+			stage TEXT NOT NULL,
+			updated_at INT NOT NULL
+		);
+
+		CREATE TABLE IF NOT EXISTS prospect_touches (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			place_key TEXT NOT NULL,
+			stage TEXT NOT NULL,
+			message TEXT NOT NULL,
+			outcome TEXT NOT NULL,
+			created_at INT NOT NULL
+		);
+
+		CREATE INDEX IF NOT EXISTS idx_prospect_touches_key_id
+			ON prospect_touches (place_key, id);
 	`)
 
 	return err

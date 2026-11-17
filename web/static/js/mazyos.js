@@ -11,6 +11,15 @@
     };
 
     var STATUS = { pending: 'Na fila', working: 'Buscando', ok: 'Concluída', failed: 'Falhou' };
+    var PROSPECT_STAGES = [
+        { value: 'new', label: 'Novo' },
+        { value: 'first_contact', label: '1º contato' },
+        { value: 'follow_up_1', label: 'Follow-up 1' },
+        { value: 'follow_up_2', label: 'Follow-up 2' },
+        { value: 'replied', label: 'Respondeu' },
+        { value: 'customer', label: 'Cliente' },
+        { value: 'not_interested', label: 'Sem interesse' }
+    ];
 
     var $ = function (id) { return document.getElementById(id); };
 
@@ -21,6 +30,7 @@
         geo: null,          // { lat, lon, label }
         jobs: [],
         counts: {},         // jobId -> nº de empresas
+        prospects: {},      // place key -> CRM stage and touches
         selected: null,     // job selecionado
         places: [],
         filter: 'all',
@@ -93,11 +103,11 @@
 
     function digits(phone) { return String(phone || '').replace(/\D/g, ''); }
 
-    // Celular brasileiro: DDD + 9 dígitos começando com 9.
+    // Brazilian numbers: accept DDD + fixed line or mobile so the user can verify WhatsApp availability.
     function whatsapp(phone) {
         var d = digits(phone);
-        if (d.indexOf('55') === 0 && d.length === 13) d = d.slice(2);
-        if (d.length === 11 && d.charAt(2) === '9') return '55' + d;
+        if (d.indexOf('55') === 0 && (d.length === 12 || d.length === 13)) d = d.slice(2);
+        if (d.length === 10 || (d.length === 11 && d.charAt(2) === '9')) return '55' + d;
         return null;
     }
 
@@ -376,6 +386,7 @@
     function clearSelection() {
         state.selected = null;
         state.places = [];
+        state.prospects = {};
         markers.clearLayers();
         markerByKey = {};
         $('livebar').hidden = true;
@@ -394,6 +405,7 @@
         state.selected = job;
         if (changed) {
             state.places = [];
+            state.prospects = {};
             state.filter = 'all';
             markers.clearLayers();
             markerByKey = {};
@@ -402,11 +414,59 @@
         }
         renderJobs();
         loadPlaces(changed);
+        if (changed) loadProspects(job.ID);
+    }
+
+    function loadProspects(jobID) {
+        return fetch('/api/v1/jobs/' + jobID + '/prospects')
+            .then(function (r) { if (!r.ok) throw new Error('API'); return r.json(); })
+            .then(function (prospects) {
+                if (!state.selected || state.selected.ID !== jobID) return;
+                state.prospects = prospects || {};
+                renderBoard();
+            })
+            .catch(function () { toast('Não consegui carregar as etapas de prospecção.'); });
     }
 
     // ---------- Empresas ----------
 
-    function placeKey(p) { return p.link || (p.title + p.latitude + p.longitude); }
+    function placeKey(p) { return p.key || p.link || (p.title + p.latitude + p.longitude); }
+
+    function stageLabel(value) {
+        var stage = PROSPECT_STAGES.filter(function (item) { return item.value === value; })[0];
+        return stage ? stage.label : 'Novo';
+    }
+
+    function prospectMessage(p, stage) {
+        var company = p.title || 'sua empresa';
+        var job = state.selected || {};
+        var data = job.Data || {};
+        var keyword = (data.keywords || [])[0] || p.category || 'negócios locais';
+        keyword = keyword.split(/\s+em\s+/i)[0];
+        var city = p.city || (job.Name || '').split('·').pop().trim() || 'sua região';
+        if (stage === 'new') {
+            return 'Oi, tudo bem? Sou o Douglas. Encontrei a ' + company + ' no Google Maps enquanto pesquisava ' + keyword + ' em ' + city + '. Estou ajudando negócios locais a facilitar o acesso dos clientes às avaliações no Google e a melhorar o Perfil da Empresa. Posso te mandar uma sugestão rápida, sem compromisso?';
+        }
+        if (stage === 'first_contact') {
+            return 'Oi! Retomando meu contato sobre o Perfil da Empresa no Google da ' + company + '. Posso te mostrar uma ideia simples com placa de QR Code + NFC para facilitar o acesso dos clientes à avaliação. Se não for o momento, tudo bem.';
+        }
+        if (stage === 'follow_up_1') {
+            return 'Oi, ' + company + '! Conseguiu ver minha mensagem? Se for útil, posso explicar em poucas linhas como funciona a placa com QR Code + NFC e a revisão do perfil no Google. Sem compromisso.';
+        }
+        if (stage === 'follow_up_2') {
+            return 'Oi! Esta é minha última mensagem para não insistir. Se quiser conversar sobre a placa de avaliação com QR Code + NFC ou uma revisão do Perfil da Empresa no Google, fico à disposição. Se não tiver interesse, tudo bem.';
+        }
+        if (stage === 'replied') {
+            return 'Obrigado por responder! Posso entender melhor o que vocês precisam e sugerir o próximo passo mais adequado, sem compromisso.';
+        }
+        return '';
+    }
+
+    function messageURL(p, stage) {
+        var wa = whatsapp(p.phone);
+        var message = prospectMessage(p, stage);
+        return wa && message ? 'https://wa.me/' + wa + '?text=' + encodeURIComponent(message) : '';
+    }
 
     function popupHtml(p) {
         var wa = whatsapp(p.phone);
@@ -522,7 +582,7 @@
         var rows = filtered();
         $('download').textContent = 'Baixar planilha (' + rows.length + ')';
         if (!rows.length) {
-            $('rows').innerHTML = '<tr><td colspan="6" class="t-empty">' +
+            $('rows').innerHTML = '<tr><td colspan="8" class="t-empty">' +
                 (all.length ? 'Nenhuma empresa nesse filtro.' : (running ? 'As empresas aparecem aqui conforme a busca anda.' : 'Essa busca não trouxe empresas.')) +
                 '</td></tr>';
             return;
@@ -534,13 +594,27 @@
                   (k === 'social' ? '<span class="tag">Rede social</span>' : '');
             var wa = whatsapp(p.phone);
             var phone = !p.phone ? '<span class="t-cat">sem telefone</span>'
-                : wa ? '<a class="mono" href="https://wa.me/' + wa + '" target="_blank" rel="noopener">' + esc(p.phone) + '</a><span class="wa">WHATS</span>'
+                : wa ? '<span class="mono">' + esc(p.phone) + '</span><span class="wa">WHATS</span>'
                 : '<span class="mono">' + esc(p.phone) + '</span>';
+            var key = placeKey(p);
+            var prospect = state.prospects[key] || {};
+            var stage = prospect.stage || 'new';
+            var options = PROSPECT_STAGES.map(function (item) {
+                return '<option value="' + item.value + '"' + (item.value === stage ? ' selected' : '') + '>' + esc(item.label) + '</option>';
+            }).join('');
+            var message = messageURL(p, stage);
+            var whatsappButton = message
+                ? '<a class="wa-start" href="' + esc(message) + '" target="_blank" rel="noopener" data-wa="' + esc(key) + '">Abrir WhatsApp</a>'
+                : '<span class="wa-start disabled">Sem mensagem</span>';
+            var touchCount = Number(prospect.touch_count || 0);
+            var historyButton = '<button type="button" class="history-link" data-history="' + esc(key) + '" data-name="' + esc(p.title) + '">Histórico (' + touchCount + ')</button>';
             return '<tr data-i="' + i + '">' +
                 '<td><div class="t-name">' + esc(p.title) + '</div><div class="t-cat">' + esc(p.category) + '</div></td>' +
                 '<td>' + esc(p.borough) + '</td>' +
                 '<td class="num">' + (p.review_rating ? '★ ' + rating(p.review_rating) + ' <span class="t-cat">(' + int(p.review_count) + ')</span>' : '') + '</td>' +
                 '<td>' + phone + '</td>' +
+                '<td><select class="stage-select" data-stage="' + esc(key) + '" aria-label="Etapa de prospecção de ' + esc(p.title) + '">' + options + '</select><div class="touch-count">' + touchCount + (touchCount === 1 ? ' toque' : ' toques') + '</div></td>' +
+                '<td><div class="prospect-actions">' + whatsappButton + historyButton + '</div></td>' +
                 '<td>' + site + '</td>' +
                 '<td>' + (p.link ? '<a href="' + esc(p.link) + '" target="_blank" rel="noopener" title="Abrir no Google Maps">' + ICON.arrow + '</a>' : '') + '</td>' +
                 '</tr>';
@@ -551,9 +625,80 @@
     segmented('filters', 'data-f', function (v) { state.filter = v; renderBoard(); });
     $('filterText').addEventListener('input', renderBoard);
 
+    $('rows').addEventListener('change', function (e) {
+        var select = e.target.closest('[data-stage]');
+        if (!select) return;
+        var key = select.getAttribute('data-stage');
+        var stage = select.value;
+        fetch('/api/v1/prospects/' + key, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ stage: stage })
+        })
+            .then(function (r) { if (!r.ok) throw new Error('API'); return r.json(); })
+            .then(function (prospect) {
+                state.prospects[key] = Object.assign(state.prospects[key] || {}, prospect);
+                renderBoard();
+                toast('Etapa salva: ' + stageLabel(stage));
+            })
+            .catch(function () { renderBoard(); toast('Não consegui salvar a etapa.'); });
+    });
+
+    function showTouchHistory(key, name) {
+        $('touchTitle').textContent = 'Abordagens · ' + (name || 'empresa');
+        $('touchHistory').innerHTML = '<div class="touch-empty">Carregando histórico...</div>';
+        $('touchDialog').showModal();
+        fetch('/api/v1/prospects/' + key + '/touches')
+            .then(function (r) { if (!r.ok) throw new Error('API'); return r.json(); })
+            .then(function (touches) {
+                if (!touches || !touches.length) {
+                    $('touchHistory').innerHTML = '<div class="touch-empty">Nenhuma mensagem aberta ainda.</div>';
+                    return;
+                }
+                $('touchHistory').innerHTML = touches.map(function (touch) {
+                    var outcome = touch.outcome === 'opened' ? 'WhatsApp aberto · envio não confirmado' : esc(touch.outcome);
+                    return '<article class="touch-entry"><div class="touch-entry-meta"><span>' + esc(stageLabel(touch.stage)) + ' · ' + outcome + '</span><time>' + esc(dateBR(touch.created_at)) + '</time></div><pre>' + esc(touch.message) + '</pre></article>';
+                }).join('');
+            })
+            .catch(function () { $('touchHistory').innerHTML = '<div class="touch-empty">Não foi possível carregar o histórico.</div>'; });
+    }
+
+    $('closeTouches').addEventListener('click', function () { $('touchDialog').close(); });
+
     // Clicar numa linha leva pro pin no mapa.
     $('rows').addEventListener('click', function (e) {
-        if (e.target.closest('a')) return;
+        var history = e.target.closest('[data-history]');
+        if (history) {
+            showTouchHistory(history.getAttribute('data-history'), history.getAttribute('data-name'));
+            return;
+        }
+        var waButton = e.target.closest('[data-wa]');
+        if (waButton) {
+            var row = waButton.closest('tr');
+            var key = waButton.getAttribute('data-wa');
+            var stageSelect = row.querySelector('[data-stage]');
+            var stage = stageSelect ? stageSelect.value : 'new';
+            var place = renderBoard.rows[Number(row.getAttribute('data-i'))];
+            var message = prospectMessage(place, stage);
+            fetch('/api/v1/prospects/' + key + '/touches', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ stage: stage, message: message })
+            })
+                .then(function (r) { if (!r.ok) throw new Error('API'); return r.json(); })
+                .then(function (touch) {
+                    var prospect = state.prospects[key] || { key: key, stage: stage, touch_count: 0 };
+                    prospect.stage = stage;
+                    prospect.touch_count = Number(prospect.touch_count || 0) + 1;
+                    prospect.last_touch = touch;
+                    state.prospects[key] = prospect;
+                    renderBoard();
+                    toast('Mensagem aberta no WhatsApp. Toque em Enviar no aplicativo.');
+                })
+                .catch(function () { toast('WhatsApp aberto; não consegui salvar o histórico.'); });
+            return;
+        }
+        if (e.target.closest('a,button,select,input')) return;
         var tr = e.target.closest('tr[data-i]');
         if (!tr) return;
         var p = renderBoard.rows[Number(tr.getAttribute('data-i'))];

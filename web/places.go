@@ -18,6 +18,7 @@ var ErrPlacesNotFound = errors.New("places not found")
 
 // Place is a single map-able result extracted from a job's CSV output.
 type Place struct {
+	Key          string  `json:"key"`
 	Title        string  `json:"title"`
 	Address      string  `json:"address"`
 	Latitude     float64 `json:"latitude"`
@@ -135,7 +136,7 @@ func parsePlaces(r io.Reader) ([]Place, error) {
 		var addr completeAddress
 		_ = json.Unmarshal([]byte(get(row, "complete_address")), &addr)
 
-		places = append(places, Place{
+		place := Place{
 			Title:        get(row, "title"),
 			Address:      get(row, "address"),
 			Latitude:     lat,
@@ -149,7 +150,9 @@ func parsePlaces(r io.Reader) ([]Place, error) {
 			Emails:       get(row, "emails"),
 			Borough:      addr.Borough,
 			City:         addr.City,
-		})
+		}
+		place.Key = placeKey(place)
+		places = append(places, place)
 	}
 
 	return places, nil

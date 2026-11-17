@@ -519,6 +519,25 @@ td a:hover { text-decoration: underline; }
 .wa { font-size: 10px; letter-spacing: .04em; color: var(--muted); margin-left: 6px; }
 .t-site { max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: block; }
 .t-empty { text-align: center; color: var(--muted); padding: 48px 0; }
+.crm-note { color: var(--muted); margin-top: 6px; font-size: 12px; }
+.stage-select { max-width: 150px; width: 100%; padding: 7px 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--ink); font: inherit; }
+.touch-count { color: var(--muted); font-size: 11px; margin-top: 4px; white-space: nowrap; }
+.prospect-actions { display: flex; align-items: center; gap: 8px; white-space: nowrap; }
+.wa-start { display: inline-block; padding: 7px 9px; border-radius: 6px; background: var(--ink); color: #fff; font-size: 12px; text-decoration: none; }
+.wa-start:hover { text-decoration: none; opacity: .86; }
+.wa-start.disabled { background: #eee; color: var(--muted); pointer-events: none; }
+.history-link { border: 0; padding: 0; background: none; color: var(--muted); font: inherit; font-size: 12px; cursor: pointer; }
+.history-link:hover { color: var(--ink); text-decoration: underline; }
+.touch-dialog { width: min(600px, calc(100vw - 32px)); max-height: min(75vh, 760px); padding: 22px; border: 1px solid var(--line); border-radius: 12px; color: var(--ink); box-shadow: 0 16px 50px rgba(0,0,0,.2); }
+.touch-dialog::backdrop { background: rgba(0,0,0,.36); }
+.touch-dialog-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; border-bottom: 1px solid var(--line); padding-bottom: 14px; }
+.touch-dialog-head h2 { margin: 0; font-size: 18px; font-weight: 500; }
+.touch-dialog-head p { margin: 6px 0 0; color: var(--muted); font-size: 12px; }
+.touch-history { max-height: 55vh; overflow: auto; }
+.touch-entry { padding: 14px 0; border-bottom: 1px solid var(--line); }
+.touch-entry-meta { display: flex; justify-content: space-between; gap: 12px; color: var(--muted); font-size: 12px; margin-bottom: 8px; }
+.touch-entry pre { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; font: inherit; font-size: 13px; line-height: 1.5; }
+.touch-empty { color: var(--muted); padding: 24px 0; text-align: center; }
 
 .toast {
     position: fixed;
