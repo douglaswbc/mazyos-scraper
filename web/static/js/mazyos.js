@@ -908,6 +908,7 @@
     function setView(v) {
         state.view = v;
         document.body.classList.toggle('crm-open', v === 'crm');
+        document.body.classList.toggle('board-open', v === 'board');
         Array.prototype.forEach.call($('viewSeg').children, function (b) {
             b.classList.toggle('on', b.getAttribute('data-view') === v);
         });

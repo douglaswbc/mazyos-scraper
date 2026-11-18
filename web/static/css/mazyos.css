@@ -598,6 +598,73 @@ td a:hover { text-decoration: underline; }
 
 @media (max-width: 900px) {
     .panel { width: auto; right: 16px; bottom: auto; max-height: 60vh; }
+    body.board-open {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        height: 100vh;
+        height: 100dvh;
+        padding: 12px;
+        overflow: hidden;
+    }
+    body.board-open .panel {
+        position: relative;
+        inset: auto;
+        width: 100%;
+        max-height: 38vh;
+        max-height: 38dvh;
+        margin: 0;
+        flex: 0 0 auto;
+        min-height: 0;
+    }
+    body.board-open .panel-head { gap: 8px; padding: 10px 12px; }
+    body.board-open .brand { gap: 8px; }
+    body.board-open .brand-sub { display: none; }
+    body.board-open .seg button { padding: 6px 8px; font-size: 12px; }
+    body.board-open .panel-body { min-height: 0; }
+    body.board-open .panel-body > .search,
+    body.board-open .panel-body > .hint,
+    body.board-open .panel-body > .settings,
+    body.board-open .panel-body > #go,
+    body.board-open .panel-body > .error { display: none; }
+    body.board-open .jobs { margin-top: 0; }
+    body.board-open .panel-foot { display: none; }
+    body.board-open .board {
+        position: relative;
+        inset: auto;
+        width: auto;
+        min-height: 0;
+        margin: 0;
+        flex: 1 1 auto;
+    }
+    body.board-open .board-head {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 12px;
+        padding: 16px 16px 0;
+    }
+    body.board-open .board-head h1 { font-size: 22px; overflow-wrap: anywhere; }
+    body.board-open .board-actions { flex-wrap: wrap; }
+    body.board-open .board-main { overflow-y: auto; }
+    body.board-open .stats {
+        margin: 12px 16px 0;
+        grid-auto-flow: column;
+        grid-auto-columns: minmax(112px, 1fr);
+        grid-template-columns: none;
+        flex: 0 0 auto;
+        overflow-x: auto;
+    }
+    body.board-open .stats .stat:last-child:nth-child(odd) { grid-column: auto; }
+    body.board-open .board-tools {
+        flex-direction: column;
+        align-items: stretch;
+        padding: 12px 16px;
+    }
+    body.board-open #filters { flex-wrap: nowrap; overflow-x: auto; }
+    body.board-open #filters button { flex: none; white-space: nowrap; }
+    body.board-open .board-tools .field.slim { width: 100%; max-width: none; }
+    body.board-open .table-wrap { padding: 0 16px 16px; -webkit-overflow-scrolling: touch; }
+    body.board-open .table-wrap table { min-width: 820px; }
     .crm-open .panel { max-height: none; }
     .crm-open .panel .panel-body, .crm-open .panel .panel-foot { display: none; }
     .livebar, .board { left: 16px; }
