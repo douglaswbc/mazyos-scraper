@@ -663,7 +663,7 @@ td a:hover { text-decoration: underline; }
     body.board-open #filters { flex-wrap: nowrap; overflow-x: auto; }
     body.board-open #filters button { flex: none; white-space: nowrap; }
     body.board-open .board-tools .field.slim { width: 100%; max-width: none; }
-    body.board-open .table-wrap { padding: 0 16px 16px; -webkit-overflow-scrolling: touch; }
+    body.board-open .table-wrap { flex: 1 0 140px; min-height: 140px; padding: 0 16px 16px; -webkit-overflow-scrolling: touch; }
     body.board-open .table-wrap table { min-width: 820px; }
     .crm-open .panel { max-height: none; }
     .crm-open .panel .panel-body, .crm-open .panel .panel-foot { display: none; }
