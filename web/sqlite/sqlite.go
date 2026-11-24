@@ -420,6 +420,7 @@ func createSchema(db *sql.DB) error {
 			lead_key TEXT NOT NULL,
 			offer_id INTEGER NOT NULL REFERENCES crm_offers(id) ON DELETE RESTRICT,
 			price_cents INTEGER CHECK (price_cents IS NULL OR price_cents >= 0),
+			monthly_price_cents INTEGER CHECK (monthly_price_cents IS NULL OR monthly_price_cents >= 0),
 			stage TEXT NOT NULL,
 			next_action TEXT NOT NULL DEFAULT '',
 			next_action_at INT,
@@ -441,6 +442,48 @@ func createSchema(db *sql.DB) error {
 	if err != nil {
 		return err
 	}
+	if err := ensureOpportunityMonthlyPriceColumn(db); err != nil {
+		return err
+	}
+	if err := seedOfferCatalogV1(db); err != nil {
+		return err
+	}
+	return seedOfferCatalogV2(db)
+}
+
+func ensureOpportunityMonthlyPriceColumn(db *sql.DB) error {
+	rows, err := db.Query(`PRAGMA table_info(crm_opportunities)`)
+	if err != nil {
+		return err
+	}
+	found := false
+	for rows.Next() {
+		var cid, notnull, pk int
+		var name, dataType string
+		var defaultValue any
+		if err := rows.Scan(&cid, &name, &dataType, &notnull, &defaultValue, &pk); err != nil {
+			rows.Close()
+			return err
+		}
+		if name == "monthly_price_cents" {
+			found = true
+		}
+	}
+	if err := rows.Err(); err != nil {
+		rows.Close()
+		return err
+	}
+	if err := rows.Close(); err != nil {
+		return err
+	}
+	if found {
+		return nil
+	}
+	_, err = db.Exec(`ALTER TABLE crm_opportunities ADD COLUMN monthly_price_cents INTEGER CHECK (monthly_price_cents IS NULL OR monthly_price_cents >= 0)`)
+	return err
+}
+
+func seedOfferCatalogV1(db *sql.DB) error {
 	tx, err := db.Begin()
 	if err != nil {
 		return err
@@ -471,3 +514,61 @@ func createSchema(db *sql.DB) error {
 	}
 	return tx.Commit()
 }
+
+func seedOfferCatalogV2(db *sql.DB) error {
+	tx, err := db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	result, err := tx.Exec(`INSERT OR IGNORE INTO crm_meta (key, value) VALUES ('offer_catalog_v2', 'seeded')`)
+	if err != nil {
+		return err
+	}
+	inserted, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if inserted == 0 {
+		return tx.Commit()
+	}
+	now := time.Now().UTC().Unix()
+	legacyNames := []string{
+		"Placa de avaliação (QR Code + NFC)",
+		"Criação de site",
+		"Edição de vídeo",
+		"Fluência em IA",
+		"Otimização do Perfil da Empresa no Google",
+	}
+	for _, name := range legacyNames {
+		if _, err := tx.Exec(`UPDATE crm_offers SET active = 0, updated_at = ? WHERE name = ? AND description = '' AND default_price_cents IS NULL`, now, name); err != nil {
+			return err
+		}
+	}
+	offers := []struct {
+		name        string
+		description string
+		price       *int64
+	}{
+		{name: "Placas de Avaliação Google (NFC + QR Code)", description: "Placa personalizada com NFC e QR Code para facilitar o acesso às avaliações do Google."},
+		{name: "Perfil de Empresa no Google", description: "Perfil completo e otimizado para buscas locais e Google Maps."},
+		{name: "Criação de site ou landing page", description: "Páginas rápidas, responsivas e estruturadas para gerar contatos."},
+		{name: "Gestão de Google Ads", description: "Campanhas para alcançar quem já procura pelo serviço. A verba de anúncios é paga diretamente ao Google, separada da gestão."},
+		{name: "Influencer / Clone de IA", description: "Avatar realista e voz autorizada para produzir vídeos e anúncios sem gravações diárias; exige consentimento expresso."},
+		{name: "Combo Presença Local", description: "Pagamento único de R$ 490 (de R$ 530): placa NFC + QR Code personalizado, otimização do Perfil de Empresa no Google e orientação para facilitar novas avaliações. Sem mensalidade.", price: int64Pointer(49000)},
+		{name: "Combo Aceleração Total", description: "Implantação a partir de R$ 1.490; gestão de Google Ads de R$ 600 a R$ 900/mês. Inclui otimização do Perfil de Empresa no Google, landing page e gestão de campanhas. Verba de anúncios paga diretamente ao Google, à parte; não contabilizar como receita.", price: int64Pointer(149000)},
+		{name: "Combo Futuro & Escala IA", description: "Pacote inicial a partir de R$ 990: setup do avatar + 4 vídeos, avatar/clone personalizado e criativos para anúncios com identidade e voz autorizadas. Vídeos extras e produção recorrente sob proposta.", price: int64Pointer(99000)},
+	}
+	for _, offer := range offers {
+		var price any
+		if offer.price != nil {
+			price = *offer.price
+		}
+		if _, err := tx.Exec(`INSERT OR IGNORE INTO crm_offers (name, description, default_price_cents, active, created_at, updated_at) VALUES (?, ?, ?, 1, ?, ?)`, offer.name, offer.description, price, now, now); err != nil {
+			return err
+		}
+	}
+	return tx.Commit()
+}
+
+func int64Pointer(value int64) *int64 { return &value }

@@ -218,7 +218,7 @@ func (s *Service) SaveCRMOpportunity(ctx context.Context, item Opportunity) (Opp
 	if s.crm == nil {
 		return Opportunity{}, errors.New("CRM storage is unavailable")
 	}
-	if !ValidProspectKey(item.LeadKey) || item.OfferID <= 0 || !item.Stage.Valid() || len(item.NextAction) > 500 || len(item.Notes) > 4000 || (item.PriceCents != nil && *item.PriceCents < 0) {
+	if !ValidProspectKey(item.LeadKey) || item.OfferID <= 0 || !item.Stage.Valid() || len(item.NextAction) > 500 || len(item.Notes) > 4000 || (item.PriceCents != nil && *item.PriceCents < 0) || (item.MonthlyPriceCents != nil && *item.MonthlyPriceCents < 0) {
 		return Opportunity{}, errors.New("invalid opportunity")
 	}
 	return s.crm.SaveOpportunity(ctx, item)

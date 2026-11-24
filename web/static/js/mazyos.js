@@ -1,4 +1,4 @@
-// MazyOS Scraper: interface sobre a API do google-maps-scraper.
+// Scraper Local: interface sobre a API do google-maps-scraper.
 (function () {
     'use strict';
 
@@ -122,9 +122,7 @@
     }
 
     function siteKind(url) {
-        if (!url) return 'none';
-        if (/instagram\.com|facebook\.com|linktr\.ee|wa\.me|whatsapp\.com|tiktok\.com/i.test(url)) return 'social';
-        return 'site';
+        return ScraperProspecting.linkKind(url);
     }
 
     function domain(url) {
@@ -447,51 +445,28 @@
         return stage ? stage.label : 'Novo';
     }
 
-    function prospectMessage(p, stage) {
-        var company = p.title || 'sua empresa';
-        var job = state.selected || {};
-        var data = job.Data || {};
-        var keyword = (data.keywords || [])[0] || p.category || 'negócios locais';
-        keyword = keyword.split(/\s+em\s+/i)[0];
-        var city = p.city || (job.Name || '').split('·').pop().trim() || 'sua região';
-        if (stage === 'new') {
-            return 'Oi, tudo bem? Sou o Douglas. Encontrei a ' + company + ' no Google Maps enquanto pesquisava ' + keyword + ' em ' + city + '. Estou ajudando negócios locais a facilitar o acesso dos clientes às avaliações no Google e a melhorar o Perfil da Empresa. Posso te mandar uma sugestão rápida, sem compromisso?';
-        }
-        if (stage === 'first_contact') {
-            return 'Oi! Retomando meu contato sobre o Perfil da Empresa no Google da ' + company + '. Posso te mostrar uma ideia simples com placa de QR Code + NFC para facilitar o acesso dos clientes à avaliação. Se não for o momento, tudo bem.';
-        }
-        if (stage === 'follow_up_1') {
-            return 'Oi, ' + company + '! Conseguiu ver minha mensagem? Se for útil, posso explicar em poucas linhas como funciona a placa com QR Code + NFC e a revisão do perfil no Google. Sem compromisso.';
-        }
-        if (stage === 'follow_up_2') {
-            return 'Oi! Esta é minha última mensagem para não insistir. Se quiser conversar sobre a placa de avaliação com QR Code + NFC ou uma revisão do Perfil da Empresa no Google, fico à disposição. Se não tiver interesse, tudo bem.';
-        }
-        if (stage === 'replied') {
-            return 'Obrigado por responder! Posso entender melhor o que vocês precisam e sugerir o próximo passo mais adequado, sem compromisso.';
-        }
-        return '';
-    }
-
     function messageURL(p, stage) {
         var wa = whatsapp(p.phone);
-        var message = prospectMessage(p, stage);
+        var message = ScraperProspecting.messageFor(p, stage);
         return wa && message ? 'https://wa.me/' + wa + '?text=' + encodeURIComponent(message) : '';
     }
 
     function popupHtml(p) {
         var wa = whatsapp(p.phone);
         var links = [];
+        var websiteURL = ScraperProspecting.safeExternalURL(p.website);
+        var mapURL = ScraperProspecting.safeExternalURL(p.link);
         if (p.phone) {
             links.push(wa
                 ? '<a href="https://wa.me/' + wa + '" target="_blank" rel="noopener">' + ICON.phone + esc(p.phone) + ' · WhatsApp</a>'
                 : '<a href="tel:' + digits(p.phone) + '">' + ICON.phone + esc(p.phone) + '</a>');
         }
-        if (p.website) links.push('<a href="' + esc(p.website) + '" target="_blank" rel="noopener">' + ICON.globe + esc(domain(p.website)) + '</a>');
+        if (websiteURL) links.push('<a href="' + esc(websiteURL) + '" target="_blank" rel="noopener">' + ICON.globe + esc(domain(websiteURL)) + '</a>');
         if (p.emails) links.push('<a href="mailto:' + esc(p.emails.split(',')[0]) + '">' + ICON.mail + esc(p.emails.split(',')[0]) + '</a>');
-        if (p.link) links.push('<a href="' + esc(p.link) + '" target="_blank" rel="noopener">' + ICON.pin + 'Abrir no Google Maps</a>');
+        if (mapURL) links.push('<a href="' + esc(mapURL) + '" target="_blank" rel="noopener">' + ICON.pin + 'Abrir no Google Maps</a>');
         return '<div class="pop-title">' + esc(p.title) + '</div>' +
             '<div class="pop-cat">' + esc([p.category, p.borough].filter(Boolean).join(' · ')) + '</div>' +
-            (siteKind(p.website) === 'none' ? '<div style="margin-top:8px"><span class="tag dark">Sem site</span></div>' : '') +
+            (siteKind(p.website) === 'none' ? '<div style="margin-top:8px"><span class="tag dark">Sem link no perfil</span></div>' : '') +
             (p.review_rating ? '<div class="pop-rate">★ <b>' + rating(p.review_rating) + '</b> <span style="color:#8a8a8a">(' + int(p.review_count) + ' avaliações)</span></div>' : '') +
             (links.length ? '<div class="pop-links">' + links.join('') + '</div>' : '');
     }
@@ -578,8 +553,8 @@
         var stats = [
             [int(all.length), 'Empresas'],
             [int(all.filter(function (p) { return whatsapp(p.phone); }).length), 'Com WhatsApp'],
-            [int(all.filter(function (p) { return siteKind(p.website) === 'none'; }).length), 'Sem site'],
-            [int(all.filter(function (p) { return siteKind(p.website) === 'social'; }).length), 'Só rede social'],
+            [int(all.filter(function (p) { return siteKind(p.website) === 'none'; }).length), 'Perfil sem link'],
+            [int(all.filter(function (p) { return siteKind(p.website) === 'social'; }).length), 'Link de rede social'],
             [avg ? rating(avg) : '-', 'Nota média']
         ];
         $('stats').innerHTML = stats.map(function (s) {
@@ -593,15 +568,16 @@
         var rows = filtered();
         $('download').textContent = 'Baixar planilha (' + rows.length + ')';
         if (!rows.length) {
-            $('rows').innerHTML = '<tr><td colspan="8" class="t-empty">' +
+            $('rows').innerHTML = '<tr><td colspan="9" class="t-empty">' +
                 (all.length ? 'Nenhuma empresa nesse filtro.' : (running ? 'As empresas aparecem aqui conforme a busca anda.' : 'Essa busca não trouxe empresas.')) +
                 '</td></tr>';
             return;
         }
         $('rows').innerHTML = rows.map(function (p, i) {
             var k = siteKind(p.website);
-            var site = k === 'none' ? '<span class="tag dark">Sem site</span>'
-                : '<a class="t-site" href="' + esc(p.website) + '" target="_blank" rel="noopener">' + esc(domain(p.website)) + '</a>' +
+            var websiteURL = ScraperProspecting.safeExternalURL(p.website);
+            var site = k === 'none' ? '<span class="tag dark">Sem link no perfil</span>'
+                : '<a class="t-site" href="' + esc(websiteURL) + '" target="_blank" rel="noopener">' + esc(domain(websiteURL)) + '</a>' +
                   (k === 'social' ? '<span class="tag">Rede social</span>' : '');
             var wa = whatsapp(p.phone);
             var phone = !p.phone ? '<span class="t-cat">sem telefone</span>'
@@ -619,15 +595,17 @@
                 : '<span class="wa-start disabled">Sem mensagem</span>';
             var touchCount = Number(prospect.touch_count || 0);
             var historyButton = '<button type="button" class="history-link" data-history="' + esc(key) + '" data-name="' + esc(p.title) + '">Histórico (' + touchCount + ')</button>';
+            var suggestion = ScraperProspecting.suggestionFor(p);
             return '<tr data-i="' + i + '">' +
                 '<td><div class="t-name">' + esc(p.title) + '</div><div class="t-cat">' + esc(p.category) + '</div></td>' +
                 '<td>' + esc(p.borough) + '</td>' +
                 '<td class="num">' + (p.review_rating ? '★ ' + rating(p.review_rating) + ' <span class="t-cat">(' + int(p.review_count) + ')</span>' : '') + '</td>' +
                 '<td>' + phone + '</td>' +
+                '<td><strong class="fit-name">' + esc(suggestion.offer) + '</strong><span class="fit-reason">' + esc(suggestion.reason) + '</span></td>' +
                 '<td><select class="stage-select" data-stage="' + esc(key) + '" aria-label="Etapa de prospecção de ' + esc(p.title) + '">' + options + '</select><div class="touch-count">' + touchCount + (touchCount === 1 ? ' toque' : ' toques') + '</div></td>' +
                 '<td><div class="prospect-actions">' + whatsappButton + historyButton + '</div></td>' +
                 '<td>' + site + '</td>' +
-                '<td>' + (p.link ? '<a href="' + esc(p.link) + '" target="_blank" rel="noopener" title="Abrir no Google Maps">' + ICON.arrow + '</a>' : '') + '</td>' +
+                '<td>' + (ScraperProspecting.safeExternalURL(p.link) ? '<a href="' + esc(ScraperProspecting.safeExternalURL(p.link)) + '" target="_blank" rel="noopener" title="Abrir no Google Maps">' + ICON.arrow + '</a>' : '') + '</td>' +
                 '</tr>';
         }).join('');
         renderBoard.rows = rows;
@@ -690,7 +668,7 @@
             var stageSelect = row.querySelector('[data-stage]');
             var stage = stageSelect ? stageSelect.value : 'new';
             var place = renderBoard.rows[Number(row.getAttribute('data-i'))];
-            var message = prospectMessage(place, stage);
+            var message = ScraperProspecting.messageFor(place, stage);
             fetch('/api/v1/prospects/' + key + '/touches', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -748,6 +726,18 @@
         return state.places.filter(function (p) { return placeKey(p) === key; })[0] || null;
     }
 
+    function applySuggestedOffer() {
+        var place = crmPlace($('crmLead').value);
+        if (!place) return;
+        var quote = ScraperProspecting.quoteFor(place, state.crmOffers);
+        if (!quote) {
+            $('crmOffer').value = '';
+            return;
+        }
+        $('crmOffer').value = String(quote.offerId);
+        if (!$('crmPrice').value && quote.defaultPriceCents != null) $('crmPrice').value = moneyInput(quote.defaultPriceCents);
+    }
+
     function loadCRM() {
         return Promise.all([
             fetch('/api/v1/crm/offers?include_inactive=true').then(function (r) { if (!r.ok) throw new Error('offers'); return r.json(); }),
@@ -760,15 +750,30 @@
     }
 
     function renderCRM() {
+        var previousLeadKey = $('crmLead').value;
+        var previousOfferID = $('crmOffer').value;
         $('crmLeadHint').textContent = state.places.length
             ? state.places.length + ' empresas carregadas da busca selecionada.'
             : 'Selecione uma busca com empresas para criar oportunidades.';
+        var availableLeadKeys = state.places.map(placeKey);
+        var leadSelection = ScraperProspecting.resolveLeadSelection(previousLeadKey, availableLeadKeys);
         $('crmLead').innerHTML = state.places.length ? state.places.map(function (p) {
             return '<option value="' + esc(placeKey(p)) + '">' + esc(p.title) + (p.borough ? ' · ' + esc(p.borough) : '') + '</option>';
         }).join('') : '<option value="">Selecione uma busca primeiro</option>';
+        $('crmLead').value = leadSelection.key;
         $('crmOffer').innerHTML = state.crmOffers.filter(function (o) { return o.active; }).map(function (o) {
             return '<option value="' + o.id + '">' + esc(o.name) + '</option>';
         }).join('') || '<option value="">Cadastre uma oferta ativa</option>';
+        var activeOfferIDs = state.crmOffers.filter(function (o) { return o.active; }).map(function (o) { return String(o.id); });
+        var preserveOffer = !!leadSelection.key && !leadSelection.changed && previousOfferID && activeOfferIDs.indexOf(previousOfferID) !== -1;
+        if (preserveOffer) {
+            $('crmOffer').value = previousOfferID;
+        } else {
+            $('crmPrice').value = '';
+            $('crmMonthlyPrice').value = '';
+            $('crmOffer').value = '';
+            applySuggestedOffer();
+        }
         $('crmStage').innerHTML = crmStageOptions('new');
         renderCRMOffers();
         renderCRMOpportunities();
@@ -781,9 +786,12 @@
         }).join('');
         var won = state.crmOpportunities.filter(function (item) { return item.stage === 'won' && item.price_cents != null; })
             .reduce(function (total, item) { return total + Number(item.price_cents); }, 0);
+        var wonMonthly = state.crmOpportunities.filter(function (item) { return item.stage === 'won' && item.monthly_price_cents != null; })
+            .reduce(function (total, item) { return total + Number(item.monthly_price_cents); }, 0);
         $('crmStats').innerHTML = '<div><b>' + int(state.crmOpportunities.length) + '</b><span>Oportunidades</span></div>' +
             '<div><b>' + int(state.crmOpportunities.filter(function (item) { return item.stage === 'won'; }).length) + '</b><span>Ganhos</span></div>' +
-            '<div><b>' + moneyLabel(won) + '</b><span>Valor ganho registrado</span></div>';
+            '<div><b>' + moneyLabel(won) + '</b><span>Valor único ganho</span></div>' +
+            '<div><b>' + moneyLabel(wonMonthly) + '</b><span>Mensalidades contratadas</span></div>';
     }
 
     function renderCRMOffers() {
@@ -795,7 +803,7 @@
             return '<article class="crm-offer-row" data-offer="' + offer.id + '">' +
                 '<label>Oferta<input class="offer-name" maxlength="120" value="' + esc(offer.name) + '"></label>' +
                 '<label>Descrição<input class="offer-description" maxlength="1000" value="' + esc(offer.description || '') + '"></label>' +
-                '<label>Preço padrão (R$)<input class="offer-price" type="number" min="0" step="0.01" placeholder="Pendente" value="' + moneyInput(offer.default_price_cents) + '"></label>' +
+                '<label>Valor inicial/único (R$)<input class="offer-price" type="number" min="0" step="0.01" placeholder="Pendente" value="' + moneyInput(offer.default_price_cents) + '"></label>' +
                 '<label class="crm-active"><input class="offer-active" type="checkbox"' + (offer.active ? ' checked' : '') + '> Ativa</label>' +
                 '<div class="crm-row-actions"><button type="button" class="ghost" data-offer-save="' + offer.id + '">Salvar</button><button type="button" class="ghost danger" data-offer-delete="' + offer.id + '">Excluir</button></div>' +
                 '</article>';
@@ -815,7 +823,8 @@
                 '<div class="crm-opp-title"><strong>' + esc(leadName) + '</strong><span>' + esc(item.offer_name || '') + '</span></div>' +
                 '<div class="crm-form crm-opp-fields">' +
                 '<label>Oferta<select class="opp-offer">' + activeOfferOptions(item.offer_id) + '</select></label>' +
-                '<label>Preço (R$)<input class="opp-price" type="number" min="0" step="0.01" placeholder="Pendente" value="' + moneyInput(item.price_cents) + '"></label>' +
+                '<label>Implantação / valor único (R$)<input class="opp-price" type="number" min="0" step="0.01" placeholder="Pendente" value="' + moneyInput(item.price_cents) + '"></label>' +
+                '<label>Gestão mensal (R$)<input class="opp-monthly-price" type="number" min="0" step="0.01" placeholder="Se aplicável; Aceleração: 600–900" value="' + moneyInput(item.monthly_price_cents) + '"></label>' +
                 '<label>Etapa<select class="opp-stage">' + crmStageOptions(item.stage) + '</select></label>' +
                 '<label>Próxima ação<input class="opp-action" maxlength="500" value="' + esc(item.next_action || '') + '"></label>' +
                 '<label>Data<input class="opp-date" type="date" value="' + esc(date) + '"></label>' +
@@ -829,6 +838,11 @@
     $('crmOffer').addEventListener('change', function () {
         var offer = state.crmOffers.filter(function (item) { return item.active && Number(item.id) === Number($('crmOffer').value); })[0];
         if (offer && offer.default_price_cents != null && !$('crmPrice').value) $('crmPrice').value = moneyInput(offer.default_price_cents);
+    });
+    $('crmLead').addEventListener('change', function () {
+        $('crmPrice').value = '';
+        $('crmMonthlyPrice').value = '';
+        applySuggestedOffer();
     });
 
     $('offerForm').addEventListener('submit', function (event) {
@@ -866,11 +880,14 @@
     function opportunityPayload(form, leadKey) {
         var priceValue = form.querySelector('.opp-price') ? form.querySelector('.opp-price').value : $('crmPrice').value;
         var price = moneyCents(priceValue);
+        var monthlyValue = form.querySelector('.opp-monthly-price') ? form.querySelector('.opp-monthly-price').value : $('crmMonthlyPrice').value;
+        var monthlyPrice = moneyCents(monthlyValue);
         var dateValue = form.querySelector('.opp-date') ? form.querySelector('.opp-date').value : $('crmNextDate').value;
         return {
             lead_key: leadKey,
             offer_id: Number(form.querySelector('.opp-offer') ? form.querySelector('.opp-offer').value : $('crmOffer').value),
             price_cents: price,
+            monthly_price_cents: monthlyPrice,
             stage: form.querySelector('.opp-stage') ? form.querySelector('.opp-stage').value : $('crmStage').value,
             next_action: form.querySelector('.opp-action') ? form.querySelector('.opp-action').value : $('crmNextAction').value,
             next_action_at: dateValue ? new Date(dateValue + 'T12:00:00Z').toISOString() : null,
@@ -882,9 +899,17 @@
         event.preventDefault();
         var leadKey = $('crmLead').value;
         var payload = opportunityPayload(this, leadKey);
-        if (!leadKey || !payload.offer_id || ($('crmPrice').value && payload.price_cents == null)) { toast('Selecione empresa e oferta e confira o preço.'); return; }
+        if (!leadKey || !payload.offer_id || ($('crmPrice').value && payload.price_cents == null) || ($('crmMonthlyPrice').value && payload.monthly_price_cents == null)) { toast('Selecione empresa e oferta e confira os valores.'); return; }
         fetch('/api/v1/crm/opportunities', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
-            .then(function (r) { if (!r.ok) throw new Error('save'); return r.json(); }).then(function () { this.reset(); loadCRM(); toast('Oportunidade adicionada.'); }.bind(this))
+            .then(function (r) { if (!r.ok) throw new Error('save'); return r.json(); }).then(function () {
+                this.reset();
+                $('crmLead').value = leadKey;
+                $('crmPrice').value = '';
+                $('crmMonthlyPrice').value = '';
+                applySuggestedOffer();
+                loadCRM();
+                toast('Oportunidade adicionada.');
+            }.bind(this))
             .catch(function () { toast('Não consegui salvar a oportunidade.'); });
     });
 
@@ -900,7 +925,7 @@
             return;
         }
         var payload = opportunityPayload(card, card.getAttribute('data-lead'));
-        if (!payload.offer_id || (card.querySelector('.opp-price').value && payload.price_cents == null)) { toast('Confira o preço e a oferta.'); return; }
+        if (!payload.offer_id || (card.querySelector('.opp-price').value && payload.price_cents == null) || (card.querySelector('.opp-monthly-price').value && payload.monthly_price_cents == null)) { toast('Confira os valores e a oferta.'); return; }
         fetch('/api/v1/crm/opportunities/' + id, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
             .then(function (r) { if (!r.ok) throw new Error('save'); return r.json(); }).then(function () { loadCRM(); toast('Oportunidade atualizada.'); }).catch(function () { toast('Não consegui salvar a oportunidade.'); });
     });

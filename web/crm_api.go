@@ -19,13 +19,14 @@ type offerRequest struct {
 }
 
 type opportunityRequest struct {
-	LeadKey      string     `json:"lead_key"`
-	OfferID      int64      `json:"offer_id"`
-	PriceCents   *int64     `json:"price_cents"`
-	Stage        CRMStage   `json:"stage"`
-	NextAction   string     `json:"next_action"`
-	NextActionAt *time.Time `json:"next_action_at"`
-	Notes        string     `json:"notes"`
+	LeadKey           string     `json:"lead_key"`
+	OfferID           int64      `json:"offer_id"`
+	PriceCents        *int64     `json:"price_cents"`
+	MonthlyPriceCents *int64     `json:"monthly_price_cents"`
+	Stage             CRMStage   `json:"stage"`
+	NextAction        string     `json:"next_action"`
+	NextActionAt      *time.Time `json:"next_action_at"`
+	Notes             string     `json:"notes"`
 }
 
 func (s *Server) apiCRMOffers(w http.ResponseWriter, r *http.Request) {
@@ -113,7 +114,7 @@ func (s *Server) apiCRMOpportunities(w http.ResponseWriter, r *http.Request) {
 			renderJSON(w, http.StatusBadRequest, apiError{Code: 400, Message: "Invalid opportunity"})
 			return
 		}
-		item, err := s.svc.SaveCRMOpportunity(r.Context(), Opportunity{LeadKey: req.LeadKey, OfferID: req.OfferID, PriceCents: req.PriceCents, Stage: req.Stage, NextAction: req.NextAction, NextActionAt: req.NextActionAt, Notes: req.Notes})
+		item, err := s.svc.SaveCRMOpportunity(r.Context(), Opportunity{LeadKey: req.LeadKey, OfferID: req.OfferID, PriceCents: req.PriceCents, MonthlyPriceCents: req.MonthlyPriceCents, Stage: req.Stage, NextAction: req.NextAction, NextActionAt: req.NextActionAt, Notes: req.Notes})
 		if err != nil {
 			renderJSON(w, http.StatusBadRequest, apiError{Code: 400, Message: "Invalid opportunity or offer"})
 			return
@@ -137,7 +138,7 @@ func (s *Server) apiCRMOpportunity(w http.ResponseWriter, r *http.Request) {
 			renderJSON(w, http.StatusBadRequest, apiError{Code: 400, Message: "Invalid opportunity"})
 			return
 		}
-		item, err := s.svc.SaveCRMOpportunity(r.Context(), Opportunity{ID: id, LeadKey: req.LeadKey, OfferID: req.OfferID, PriceCents: req.PriceCents, Stage: req.Stage, NextAction: req.NextAction, NextActionAt: req.NextActionAt, Notes: req.Notes})
+		item, err := s.svc.SaveCRMOpportunity(r.Context(), Opportunity{ID: id, LeadKey: req.LeadKey, OfferID: req.OfferID, PriceCents: req.PriceCents, MonthlyPriceCents: req.MonthlyPriceCents, Stage: req.Stage, NextAction: req.NextAction, NextActionAt: req.NextActionAt, Notes: req.Notes})
 		if errors.Is(err, sql.ErrNoRows) {
 			renderJSON(w, http.StatusNotFound, apiError{Code: 404, Message: "Opportunity not found"})
 			return

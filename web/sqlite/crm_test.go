@@ -148,8 +148,8 @@ func TestOfferSeedMarkerRollsBackWithPartialSeedFailure(t *testing.T) {
 	if err := db.QueryRow(`SELECT COUNT(*) FROM crm_offers`).Scan(&offerCount); err != nil {
 		t.Fatal(err)
 	}
-	if offerCount != 5 {
-		t.Fatalf("retry should seed all offers, got %d", offerCount)
+	if offerCount != 13 {
+		t.Fatalf("retry should preserve the five legacy offers and seed eight current offers, got %d", offerCount)
 	}
 }
 

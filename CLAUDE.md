@@ -1,4 +1,4 @@
-# MazyOS Scraper
+# Scraper Local
 
 Ferramenta que busca empresas no Google Maps por nicho e bairro e mostra num mapa, num painel de leads e numa planilha pronta pro Excel. É um fork do [gosom/google-maps-scraper](https://github.com/gosom/google-maps-scraper) (Go, licença MIT) com interface nova em português e uma correção pro Windows.
 
@@ -9,13 +9,13 @@ Quem usa este repositório normalmente não é programador. Fale em português, 
 Rode o script da plataforma, a partir da raiz do repositório:
 
 - **Windows:** `powershell -ExecutionPolicy Bypass -File instalar.ps1`
-  Baixa o `mazyos-scraper.exe` pronto do último Release. Se não houver Release, instala o Go na pasta do usuário e compila. No fim, abre o `Abrir MazyOS Scraper.cmd`, que sobe o servidor minimizado e abre `http://localhost:8080`.
+  Baixa o `mazyos-scraper.exe` pronto do último Release. Se não houver Release, instala o Go na pasta do usuário e compila. No fim, abre o `Abrir Scraper Local.cmd`, que sobe o servidor minimizado e abre `http://localhost:8080`.
 - **Mac / Linux:** `bash instalar.sh` e depois `bash abrir.sh`.
   Instala o Go em `~/.mazyos-go` se faltar, compila e sobe o servidor em segundo plano.
 
 A primeira busca baixa sozinha um navegador do Playwright (uns 150 MB). Isso é normal e acontece uma vez só.
 
-Depois de abrir, explique pra pessoa como usar a tela (resumo na seção "Como usar" do `README.md`) e como abrir de novo outro dia (dois cliques em `Abrir MazyOS Scraper.cmd` no Windows, `bash abrir.sh` no Mac/Linux).
+Depois de abrir, explique pra pessoa como usar a tela (resumo na seção "Como usar" do `README.md`) e como abrir de novo outro dia (dois cliques em `Abrir Scraper Local.cmd` no Windows, `bash abrir.sh` no Mac/Linux).
 
 ## Problemas conhecidos
 

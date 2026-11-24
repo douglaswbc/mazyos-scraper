@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Sobe o MazyOS Scraper em segundo plano e abre no navegador.
+# Sobe o Scraper Local em segundo plano e abre no navegador.
 # Pra desligar: kill $(cat webdata/mazyos.pid)
 set -euo pipefail
 cd "$(dirname "$0")"

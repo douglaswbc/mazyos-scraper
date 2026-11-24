@@ -36,17 +36,18 @@ type Offer struct {
 }
 
 type Opportunity struct {
-	ID           int64      `json:"id"`
-	LeadKey      string     `json:"lead_key"`
-	OfferID      int64      `json:"offer_id"`
-	OfferName    string     `json:"offer_name,omitempty"`
-	PriceCents   *int64     `json:"price_cents,omitempty"`
-	Stage        CRMStage   `json:"stage"`
-	NextAction   string     `json:"next_action"`
-	NextActionAt *time.Time `json:"next_action_at,omitempty"`
-	Notes        string     `json:"notes"`
-	CreatedAt    time.Time  `json:"created_at"`
-	UpdatedAt    time.Time  `json:"updated_at"`
+	ID                int64      `json:"id"`
+	LeadKey           string     `json:"lead_key"`
+	OfferID           int64      `json:"offer_id"`
+	OfferName         string     `json:"offer_name,omitempty"`
+	PriceCents        *int64     `json:"price_cents,omitempty"`
+	MonthlyPriceCents *int64     `json:"monthly_price_cents,omitempty"`
+	Stage             CRMStage   `json:"stage"`
+	NextAction        string     `json:"next_action"`
+	NextActionAt      *time.Time `json:"next_action_at,omitempty"`
+	Notes             string     `json:"notes"`
+	CreatedAt         time.Time  `json:"created_at"`
+	UpdatedAt         time.Time  `json:"updated_at"`
 }
 
 type CRMRepository interface {

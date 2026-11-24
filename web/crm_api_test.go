@@ -52,8 +52,8 @@ func TestCRMOffersAPIStoresEditableCatalogAndPendingPrices(t *testing.T) {
 	if err := json.Unmarshal(rec.Body.Bytes(), &offers); err != nil {
 		t.Fatal(err)
 	}
-	if len(offers) != 6 {
-		t.Fatalf("expected five initial offers plus the saved offer, got %d: %+v", len(offers), offers)
+	if len(offers) != 9 {
+		t.Fatalf("expected eight site offers plus the saved offer, got %d: %+v", len(offers), offers)
 	}
 	found := false
 	for _, item := range offers {

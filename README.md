@@ -1,10 +1,10 @@
-# MazyOS Scraper
+# Scraper Local
 
 Toda prospecção começa com uma lista. E montar essa lista na mão, copiando clínica por clínica do Google Maps pra uma planilha, come uma tarde inteira.
 
-O MazyOS Scraper faz isso em segundos. Você digita o nicho e o bairro, ele busca no Google Maps e devolve as empresas num mapa e numa planilha, já separando quem tem WhatsApp, quem não tem site e quem só tem Instagram.
+O Scraper Local faz isso em segundos. Você digita o nicho e o bairro, ele busca no Google Maps e devolve as empresas num mapa e numa planilha, destacando quem tem WhatsApp, quem não tem link de site no perfil e quem aponta para uma rede social.
 
-No meu primeiro teste, "dentista" no Batel, em Curitiba, voltaram 31 clínicas em uns 20 segundos. Oito delas sem site.
+No meu primeiro teste, "dentista" no Batel, em Curitiba, voltaram 31 clínicas em uns 20 segundos. Oito perfis não exibiam link de site; isso não confirma que essas empresas não tenham site.
 
 ![Mapa com as empresas encontradas](docs/mazyos/mapa.jpg)
 
@@ -19,7 +19,7 @@ No meu primeiro teste, "dentista" no Batel, em Curitiba, voltaram 31 clínicas e
 Abra o Claude Code numa pasta qualquer e cole isto:
 
 ```
-Clona o repositório https://github.com/mazzeoia/mazyos-scraper, entra na pasta e segue o CLAUDE.md pra instalar e abrir o MazyOS Scraper.
+Clona o repositório https://github.com/mazzeoia/mazyos-scraper, entra na pasta e segue o CLAUDE.md pra instalar e abrir o Scraper Local.
 ```
 
 Ele baixa o código, instala o que faltar e abre a ferramenta no navegador. Funciona no Windows, no Mac e no Linux. Quando ele pedir permissão pra rodar o script de instalação, pode aprovar.
@@ -28,13 +28,13 @@ Ele baixa o código, instala o que faltar e abre a ferramenta no navegador. Func
 
 1. Na lateral desta página, clique em **Releases** e baixe o arquivo `mazyos-scraper-windows.zip`.
 2. Extraia o zip numa pasta qualquer (Documentos, por exemplo).
-3. Dê dois cliques em **`Abrir MazyOS Scraper.cmd`**. O navegador abre sozinho em `http://localhost:8080`.
+3. Dê dois cliques em **`Abrir Scraper Local.cmd`**. O navegador abre sozinho em `http://localhost:8080`.
 
 Na primeira vez ele baixa um navegador próprio (uns 150 MB), então a primeira busca demora um pouco mais.
 
 O Windows pode mostrar o aviso "O Windows protegeu o computador". Isso acontece porque o programa não tem assinatura digital paga, não porque tem algo errado. Clique em **Mais informações** e depois em **Executar assim mesmo**.
 
-Pra desligar, feche a janela "MazyOS Scraper" que fica minimizada na barra de tarefas.
+Pra desligar, feche a janela "Scraper Local" que fica minimizada na barra de tarefas.
 
 Mac e Linux: use o caminho do Claude Code, ou rode `bash instalar.sh` e depois `bash abrir.sh` na pasta do projeto.
 
@@ -50,11 +50,13 @@ Mac e Linux: use o caminho do Claude Code, ou rode `bash instalar.sh` e depois `
 
 Clicando num ponto, aparece a ficha da empresa: nota, número de avaliações, telefone (com link direto pro WhatsApp quando é celular), site e link pro Google Maps.
 
-Na aba **Empresas** ficam os números da busca, os filtros (Sem site, Só rede social, WhatsApp, Com e-mail) e dois botões. **Baixar planilha** gera um arquivo que abre direto no Excel, em português, só com o que estiver filtrado. **Copiar telefones** joga a lista de telefones na área de transferência.
+Na aba **Empresas** ficam os números da busca, os filtros (Perfil sem link, Link de rede social, WhatsApp, Com e-mail) e dois botões. A ausência de link no Maps não prova que o negócio não tenha site; confirme antes de abordar. **Baixar planilha** gera um arquivo que abre direto no Excel, em português, só com o que estiver filtrado. **Copiar telefones** joga a lista de telefones na área de transferência.
 
-Na aba **CRM** fica o funil comercial. O catálogo inicial traz placa de avaliação QR Code + NFC, criação de site, edição de vídeo, fluência em IA e otimização do Perfil da Empresa no Google; as ofertas são editáveis e os preços começam pendentes, sem valores presumidos. Cada empresa pode ter várias oportunidades, cada uma com oferta, preço negociado, etapa, próxima ação, data e observações próprias. A etapa de abordagem/WhatsApp continua separada do funil comercial.
+Na aba **CRM** fica o funil comercial. O catálogo inicial contém os cinco serviços e os três combos publicados no site. A Presença Local parte de R$ 490; a Aceleração Total tem implantação a partir de R$ 1.490 e gestão mensal de R$ 600–900; o Futuro & Escala IA parte de R$ 990. O valor único/implantação e a mensalidade são campos separados. A verba de anúncios é paga diretamente ao Google e não entra como receita. Cada empresa pode ter várias oportunidades, cada uma com oferta, valores, etapa, próxima ação, data e observações próprias.
 
-O filtro mais útil pra quem vende site, tráfego ou automação? **Sem site.** É a empresa com avaliação boa no Google e nenhum lugar pra mandar o cliente.
+As mensagens de prospecção começam com uma abertura transparente e de baixa pressão, usam apenas sinais públicos do perfil e terminam com um toque final respeitoso. A indicação de serviço é uma hipótese para qualificar, não um diagnóstico. O histórico registra que o WhatsApp foi aberto e que havia um rascunho; nunca afirma que a mensagem foi enviada.
+
+O filtro **Perfil sem link** identifica empresas cujo perfil consultado não apresenta um link de site; valide se elas têm site fora do Maps. Google Ads e Clone de IA só são sugeridos depois de confirmar a necessidade em conversa, pois a busca não revela orçamento nem intenção.
 
 ---
 
@@ -87,8 +89,8 @@ O que eu mudei nesta versão:
 - **Interface nova**, em português, com mapa ao vivo, painel de leads, filtros e planilha no padrão do Excel brasileiro.
 - **Correção pro Windows.** A versão oficial para de funcionar no Windows (as buscas voltam vazias, [issue #322](https://github.com/gosom/google-maps-scraper/issues/322)). O ajuste está em `third_party/scrapemate`.
 - **Rota nova na API**, `GET /api/v1/jobs/{id}/places`, que devolve as empresas de uma busca em JSON.
-- **Pipeline de prospecção**, com etapas, mensagens de abordagem por etapa e histórico persistido no SQLite. O WhatsApp abre a mensagem preenchida; o envio precisa ser confirmado manualmente no aplicativo.
-- **Estatística de uso desligada.** O projeto original manda estatísticas anônimas de uso pro autor. O atalho `Abrir MazyOS Scraper.cmd` desliga isso (`DISABLE_TELEMETRY=1`).
+- **CRM comercial**, com catálogo alinhado aos serviços e combos do site, valores únicos e mensalidades separados, oportunidades persistidas no SQLite e mensagens de prospecção respeitosas. O WhatsApp abre um rascunho; o envio precisa ser confirmado manualmente no aplicativo.
+- **Estatística de uso desligada.** O projeto original manda estatísticas anônimas de uso pro autor. O atalho `Abrir Scraper Local.cmd` desliga isso (`DISABLE_TELEMETRY=1`).
 
 ---
 
@@ -101,4 +103,4 @@ go build -o mazyos-scraper .
 ./mazyos-scraper -web -addr :8080 -data-folder webdata
 ```
 
-No Windows, gere `mazyos-scraper.exe` e use o `Abrir MazyOS Scraper.cmd`. Os arquivos da interface ficam em `web/static/` (`templates/index.html`, `css/mazyos.css`, `js/mazyos.js`). Todas as opções de linha de comando estão no [README original](README-original.md).
+No Windows, gere `mazyos-scraper.exe` e use o `Abrir Scraper Local.cmd`. Os arquivos da interface ficam em `web/static/` (`templates/index.html`, `css/mazyos.css`, `js/mazyos.js`). Todas as opções de linha de comando estão no [README original](README-original.md).

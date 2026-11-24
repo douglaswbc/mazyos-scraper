@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Instala o MazyOS Scraper no Mac ou Linux (compila a partir do código).
+# Instala o Scraper Local no Mac ou Linux (compila a partir do código).
 # Uso: bash instalar.sh
 set -euo pipefail
 cd "$(dirname "$0")"
@@ -26,4 +26,4 @@ echo "Compilando..."
 go build -ldflags "-s -w" -o mazyos-scraper .
 
 echo
-echo "MazyOS Scraper instalado. Pra abrir: bash abrir.sh"
+echo "Scraper Local instalado. Pra abrir: bash abrir.sh"

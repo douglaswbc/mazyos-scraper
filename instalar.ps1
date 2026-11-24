@@ -1,4 +1,4 @@
-﻿# Instala o MazyOS Scraper no Windows e abre no navegador.
+﻿# Instala o Scraper Local no Windows e abre no navegador.
 # Uso: powershell -ExecutionPolicy Bypass -File instalar.ps1 [-NaoAbrir]
 param([switch]$NaoAbrir)
 
@@ -59,10 +59,10 @@ if (Test-Path $exe) {
 }
 
 Write-Host ''
-Write-Host 'MazyOS Scraper instalado.'
-Write-Host 'Pra abrir depois: dois cliques em "Abrir MazyOS Scraper.cmd".'
+Write-Host 'Scraper Local instalado.'
+Write-Host 'Pra abrir depois: dois cliques em "Abrir Scraper Local.cmd".'
 
 if (-not $NaoAbrir) {
-    Start-Process -FilePath (Join-Path $PSScriptRoot 'Abrir MazyOS Scraper.cmd') -WorkingDirectory $PSScriptRoot
+    Start-Process -FilePath (Join-Path $PSScriptRoot 'Abrir Scraper Local.cmd') -WorkingDirectory $PSScriptRoot
     Write-Host 'Abrindo em http://localhost:8080 (a primeira busca baixa um navegador, uns 150 MB).'
 }

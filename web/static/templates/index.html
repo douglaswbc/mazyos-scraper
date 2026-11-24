@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MazyOS Scraper</title>
+    <title>Scraper Local</title>
     <link rel="icon" type="image/png" href="/static/img/mazyos-simbolo.png">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -19,8 +19,8 @@
             <div class="brand">
                 <img class="logo" src="/static/img/mazyos-simbolo.png" alt="">
                 <div>
-                    <div class="brand-name">MazyOS Scraper</div>
-                    <div class="brand-sub">Empresas do Google Maps</div>
+                    <div class="brand-name">Scraper Local</div>
+                    <div class="brand-sub">Oportunidades para seus serviços</div>
                 </div>
             </div>
             <div class="seg" id="viewSeg">
@@ -43,7 +43,7 @@
                     <span class="spin" id="locSpin"></span>
                 </label>
             </section>
-            <p class="hint" id="locHint">Ex.: <b>dentista</b> em <b>Batel, Curitiba</b>. Várias buscas? Separe por vírgula.</p>
+            <p class="hint" id="locHint">Ex.: <b>clínica de estética</b>, <b>salão</b> ou <b>restaurante</b>. Informe também o bairro e a cidade. Várias buscas? Separe por vírgula.</p>
 
             <section class="box settings">
                 <div class="row">
@@ -113,7 +113,7 @@
             </section>
         </div>
 
-        <footer class="panel-foot">mazyos.com.br</footer>
+
     </aside>
 
     <div class="livebar" id="livebar" hidden>
@@ -132,7 +132,7 @@
                 <div>
                     <h1 id="boardTitle"></h1>
                     <div class="board-meta" id="boardMeta"></div>
-                    <div class="crm-note">O WhatsApp abre a mensagem preenchida; confira e toque em Enviar no aplicativo.</div>
+                    <div class="crm-note">A possível frente é uma hipótese baseada em dados públicos: confirme a necessidade antes de oferecer. A mensagem é um rascunho; abrir o WhatsApp não confirma envio.</div>
                 </div>
                 <div class="board-actions">
                     <button type="button" class="ghost" id="copyPhones">Copiar telefones</button>
@@ -143,8 +143,8 @@
             <div class="board-tools">
                 <div class="chips" id="filters">
                     <button type="button" data-f="all" class="on">Todas</button>
-                    <button type="button" data-f="nosite">Sem site</button>
-                    <button type="button" data-f="social">Só rede social</button>
+                    <button type="button" data-f="nosite">Perfil sem link</button>
+                    <button type="button" data-f="social">Link de rede social</button>
                     <button type="button" data-f="whats">WhatsApp</button>
                     <button type="button" data-f="email">Com e-mail</button>
                 </div>
@@ -161,6 +161,7 @@
                             <th>Bairro</th>
                             <th class="num">Nota</th>
                             <th>Telefone</th>
+                            <th>Possível frente</th>
                             <th>Etapa</th>
                             <th>Abordagem</th>
                             <th>Site</th>
@@ -175,7 +176,7 @@
 
     <main class="crm-view" id="crm" hidden>
         <header class="crm-head">
-            <div><h1>CRM comercial</h1><p>Ofertas, oportunidades, valores e próximos passos por empresa.</p></div>
+            <div><h1>CRM comercial</h1><p>Serviços e combos do site, com oportunidades e próximos passos por empresa.</p></div>
             <button type="button" class="ghost" id="refreshCRM">Atualizar</button>
         </header>
         <div class="crm-content">
@@ -185,24 +186,25 @@
                 <div class="crm-stats" id="crmStats"></div>
             </section>
             <section class="crm-section">
-                <div class="crm-section-head"><div><h2>Nova oportunidade</h2><p>Uma empresa pode ter várias ofertas em negociação, cada uma com seu próprio preço.</p></div></div>
+                <div class="crm-section-head"><div><h2>Nova oportunidade</h2><p>Implantação/valor único e gestão mensal são registrados separadamente. A verba de anúncios é paga ao Google e não é receita.</p></div></div>
                 <form id="opportunityForm" class="crm-form">
                     <label>Empresa<select id="crmLead" required></select></label>
                     <label>Oferta<select id="crmOffer" required></select></label>
-                    <label>Preço combinado (R$)<input id="crmPrice" type="number" min="0" step="0.01" placeholder="Pendente"></label>
+                    <label>Implantação / valor único (R$)<input id="crmPrice" type="number" min="0" step="0.01" placeholder="Pendente"></label>
+                    <label>Gestão mensal (R$)<input id="crmMonthlyPrice" type="number" min="0" step="0.01" placeholder="Se aplicável; Aceleração: 600–900"></label>
                     <label>Etapa<select id="crmStage"></select></label>
                     <label>Próxima ação<input id="crmNextAction" maxlength="500" placeholder="Ex.: enviar proposta"></label>
                     <label>Data da ação<input id="crmNextDate" type="date"></label>
-                    <label class="crm-notes-field">Observações<textarea id="crmNotes" maxlength="4000" rows="2"></textarea></label>
+                    <label class="crm-notes-field">Observações<textarea id="crmNotes" maxlength="4000" rows="2" placeholder="Ex.: verba de anúncios à parte; não somar à receita."></textarea></label>
                     <button type="submit" class="primary small">Adicionar oportunidade</button>
                 </form>
             </section>
             <section class="crm-section">
-                <div class="crm-section-head"><div><h2>Oportunidades</h2><p>Etapa, preço e próxima ação são salvos no CRM.</p></div></div>
+                <div class="crm-section-head"><div><h2>Oportunidades</h2><p>Valores únicos e mensalidades ficam separados; valores não informados permanecem pendentes.</p></div></div>
                 <div id="crmOpportunities" class="crm-opportunities"></div>
             </section>
             <section class="crm-section">
-                <div class="crm-section-head"><div><h2>Catálogo de ofertas</h2><p>Preços em branco permanecem pendentes; nenhuma tarifa é presumida.</p></div></div>
+                <div class="crm-section-head"><div><h2>Catálogo de ofertas</h2><p>Serviços e combos publicados no site. Implantação, mensalidade e verba de anúncios não se confundem.</p></div></div>
                 <form id="offerForm" class="crm-form crm-offer-form">
                     <label>Nome da oferta<input id="newOfferName" maxlength="120" required></label>
                     <label>Descrição<input id="newOfferDescription" maxlength="1000"></label>
@@ -228,6 +230,7 @@
     <div class="toast" id="toast"></div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+    <script src="/static/js/prospecting.js"></script>
     <script src="/static/js/mazyos.js"></script>
 </body>
 </html>

@@ -503,6 +503,8 @@ tbody tr:hover td { background: #fafafa; }
 .num { text-align: right; font-family: var(--mono); white-space: nowrap; }
 .t-name { font-weight: 500; }
 .t-cat { color: var(--muted); font-size: 12px; }
+.fit-name { display: block; max-width: 230px; font-size: 12px; font-weight: 500; }
+.fit-reason { display: block; max-width: 250px; margin-top: 3px; color: var(--muted); font-size: 11px; line-height: 1.35; }
 td a { color: var(--ink); text-decoration: none; }
 td a:hover { text-decoration: underline; }
 .mono { font-family: var(--mono); font-size: 12.5px; white-space: nowrap; }
@@ -519,7 +521,7 @@ td a:hover { text-decoration: underline; }
 .wa { font-size: 10px; letter-spacing: .04em; color: var(--muted); margin-left: 6px; }
 .t-site { max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: block; }
 .t-empty { text-align: center; color: var(--muted); padding: 48px 0; }
-.crm-note { color: var(--muted); margin-top: 6px; font-size: 12px; }
+.crm-note { max-width: 760px; color: var(--muted); margin-top: 6px; font-size: 12px; line-height: 1.45; }
 .stage-select { max-width: 150px; width: 100%; padding: 7px 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--ink); font: inherit; }
 .touch-count { color: var(--muted); font-size: 11px; margin-top: 4px; white-space: nowrap; }
 .prospect-actions { display: flex; align-items: center; gap: 8px; white-space: nowrap; }
@@ -543,7 +545,7 @@ td a:hover { text-decoration: underline; }
 .crm-funnel { display: grid; grid-template-columns: repeat(6, minmax(100px, 1fr)); gap: 8px; }
 .crm-funnel-step { display: flex; justify-content: space-between; align-items: center; gap: 8px; border: 1px solid var(--line); border-radius: 7px; padding: 10px 12px; font-size: 12px; }
 .crm-funnel-step b { font-family: var(--mono); font-size: 15px; font-weight: 500; }
-.crm-stats { display: flex; gap: 28px; padding-top: 16px; }
+.crm-stats { display: flex; flex-wrap: wrap; gap: 28px; padding-top: 16px; }
 .crm-stats div { display: flex; flex-direction: column; }
 .crm-stats b { font-size: 18px; font-weight: 500; }
 .crm-stats span { color: var(--muted); font-size: 11px; }
@@ -664,7 +666,7 @@ td a:hover { text-decoration: underline; }
     body.board-open #filters button { flex: none; white-space: nowrap; }
     body.board-open .board-tools .field.slim { width: 100%; max-width: none; }
     body.board-open .table-wrap { flex: 1 0 140px; min-height: 140px; padding: 0 16px 16px; -webkit-overflow-scrolling: touch; }
-    body.board-open .table-wrap table { min-width: 820px; }
+    body.board-open .table-wrap table { min-width: 1080px; }
     .crm-open .panel { max-height: none; }
     .crm-open .panel .panel-body, .crm-open .panel .panel-foot { display: none; }
     .livebar, .board { left: 16px; }
